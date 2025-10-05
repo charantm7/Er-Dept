@@ -923,13 +923,13 @@ const UnifiedDashboard = () => {
   const handleQuickAction = (action) => {
     switch (action) {
       case "patients":
-        setShowPatientsListModal(true);
+        navigate("/patients");
         break;
       case "doctors":
         setShowDoctorsListModal(true);
         break;
       case "appointments":
-        setShowAppointmentsModal(true);
+        navigate("/appointments");
         break;
       default:
         info(`Opening ${action}...`);

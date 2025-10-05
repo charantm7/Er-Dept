@@ -26,9 +26,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const session = supabaseclient.auth.getSession().then(({ data }) => {
-          setUser(data.session?.user ?? null);
-        });
+        const savedUser = localStorage.getItem("er_user");
 
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);

@@ -5,6 +5,12 @@ export const ROUTES = {
   ADMIN: "/admin",
   DOCTOR: "/doctor",
   NURSE: "/nurse",
+  PATIENT: "/patients",
+  FORM: "/forms",
+  PATIENTDETAILS: "/patient/:mrno",
+  APPOINTMENT: "/appointments",
+  LABREPORT: "/lab-results",
+  BILLING: "/billing",
   UNAUTHORIZED: "/unauthorized",
 };
 
