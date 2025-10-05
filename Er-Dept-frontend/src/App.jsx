@@ -1,46 +1,68 @@
 import { Navigate, BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/Auth/Authprovider";
+import { ToastProvider } from "./components/Context/ToastContext";
+import { useAuth } from "./components/Auth/Authprovider";
 import Login from "./components/Auth/Login";
 import { ProtectRoute } from "./components/Auth/ProtectRoute";
-import Doctor from "./components/Dashboards/Doctor";
-import Admin from "./components/Dashboards/Admin";
-import Staff from "./components/Dashboards/Staff";
+import UnifiedDashboard from "./components/Dashboards/UnifiedDashboard";
+import NotFoundPage from "./components/NotFoundPage";
+import { ROUTES } from "./components/Config/routes.config";
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/doctor"
-            element={
-              <ProtectRoute role="doctor">
-                <Doctor />
-              </ProtectRoute>
-            }
-          />
-          <Route
-            path="/nurse"
-            element={
-              <ProtectRoute role="nurse">
-                <Staff />
-              </ProtectRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectRoute role="admin">
-                <Admin />
-              </ProtectRoute>
-            }
-          />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* default Root route */}
+            <Route path={ROUTES.HOME} element={<RootRedirect />} />
+
+            {/* Login Route */}
+            <Route path={ROUTES.LOGIN} element={<Login />} />
+
+            {/* Single Dashboard route */}
+            <Route
+              path={ROUTES.DASHBOARD}
+              element={
+                <ProtectRoute allowedRoles={["doctor", "admin", "nurse"]}>
+                  <UnifiedDashboard />
+                </ProtectRoute>
+              }
+            />
+
+            {/* redirect route */}
+            <Route path={ROUTES.NURSE} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+            <Route path={ROUTES.ADMIN} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+            <Route path={ROUTES.DOCTOR} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+
+            {/* 404 not found */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
+
+// root helper
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  const redirectMap = {
+    admin: ROUTES.ADMIN,
+    doctor: ROUTES.DOCTOR,
+    nurse: ROUTES.NURSE,
+  };
+
+  return <Navigate to={redirectMap[user.role] || ROUTES.LOGIN} replace />;
+};
 
 export default App;

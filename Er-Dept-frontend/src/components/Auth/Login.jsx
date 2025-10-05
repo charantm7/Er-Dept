@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./Authprovider";
-import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Phone, Lock, Shield, User, Database, Wifi, AlertCircle } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, Phone, Lock, Shield, User } from "lucide-react";
+import { useToast } from "../Context/ToastContext";
 
 const demoUsers = [
   { username: "admin", password: "1234", role: "admin" },
@@ -10,180 +11,171 @@ const demoUsers = [
 ];
 
 function Login() {
-  const { login, user } = useAuth();
+  const { login, user, loading } = useAuth();
+  const { success, errorToast: setError } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  React.useEffect(() => {
-    if (user) {
-      if (user.role === "admin") navigate("/admin");
-      else if (user.role === "doctor") navigate("/doctor");
-      else if (user.role === "nurse") navigate("/nurse");
+  const from = location.state?.from?.pathname || null;
+
+  useEffect(() => {
+    if (user && !loading) {
+      const redirectMap = {
+        admin: "/admin",
+        doctor: "/doctor",
+        nurse: "/nurse",
+      };
+      navigate(from || redirectMap[user.role] || "/", { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, loading, from]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = login(username, password);
-    if (!result.success) {
-      setError(result.message);
-    } else {
-      const loggedInUser = result.user;
-      if (loggedInUser.role === "admin") navigate("/admin");
-      else if (loggedInUser.role === "doctor") navigate("/doctor");
-      else if (loggedInUser.role === "nurse") navigate("/nurse");
-    }
+    setIsSubmitting(true);
+
+    setTimeout(() => {
+      const result = login(username, password);
+
+      if (!result.success) {
+        setError(result.message);
+        setIsSubmitting(false);
+      } else {
+        success(`Welcome back, ${result.user.username}! 🎉`);
+        setTimeout(() => {
+          navigate(from || result.redirectTo, { replace: true });
+        }, 500);
+      }
+      setIsSubmitting(false);
+    }, 500);
   };
 
   const fillDemoUser = (user) => {
     setUsername(user.username);
     setPassword(user.password);
-    setError("");
   };
 
-  return (
-    <div
-      className=" flex items-center flex-col gap-5 justify-center overflow-auto ,m-h-screen w-screen"
-      style={{
-        background:
-          "linear-gradient(135deg, #bfdbfe 0%, #dbeafe 25%, #eff6ff 50%, #f8fafc 75%, #ffffff 100%)",
-      }}
-    >
-      <div className="max-w-md w-full mt-10 space-y-8 relative">
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-lg">
-            <Shield className="h-8 w-8 text-blue-600" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Hospital Admin Login</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to access the CuraHealth Emergency Departement Dashboard.
-          </p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
+    );
+  }
 
-      {error && (
-        <p className="text-red-500 absolute top-5 right-5 shadow-lg border-l-4 py-2 px-3 rounded-md bg-white">
-          {error}
-        </p>
-      )}
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-200 via-blue-100 to-white">
+      <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-blue-100 transition-all">
+        <div className="text-center mb-6">
+          <div className="mx-auto h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-md border border-blue-200">
+            <Shield className="h-8 w-8 text-blue-600" />
+          </div>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">Hospital Admin Login</h2>
+          <p className="mt-2 text-sm text-gray-600">Sign in to access the CuraHealth Dashboard.</p>
+        </div>
 
-      <div className="mb-10 p-5 lg:w-[30%] md:w-[50%] flex flex-col items-center gap-6 border-1 border-[#021f5a51] rounded-xl bg-white text-black">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-2 w-full ">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">+91</span>
-                </div>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors duration-200"
-                  placeholder="9533296898"
-                  maxLength="10"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 text-sm">
+                +91
+              </span>
+              <input
+                type="tel"
+                disabled={isSubmitting}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="9533296898"
+                maxLength="10"
+                className="block w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+              />
+              <Phone className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <div className="relative">
               <input
-                id="password"
-                name="password"
                 type={showPassword ? "text" : "password"}
+                disabled={isSubmitting}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-colors duration-200"
                 placeholder="Enter your password"
+                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
               />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
-              </div>
+              <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                )}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer"
-            style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)" }}
+            disabled={isSubmitting}
+            className="w-full py-3 text-white font-medium rounded-lg shadow-md transition-all duration-200 disabled:opacity-60"
+            style={{
+              background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)",
+            }}
           >
-            {isLoading ? (
-              <div className="flex items-center">
-                <div className="loading-spinner mr-2"></div>
-                Signing in...
-              </div>
-            ) : (
-              "Sign In"
-            )}
+            {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
         </form>
-        <div className="bg-[#00000036] h-[1px] w-[80%]"></div>
-        <div className="w-full flex flex-col items-center gap-3">
-          <p className="font-medium text-[14px] text-gray-600">DEMO CREDENTIALS</p>
 
-          <div className="w-full p-2 flex flex-col gap-3 ">
+        <div className="mt-6 mb-4 border-t border-gray-200"></div>
+
+        <div>
+          <p className="text-center text-sm font-semibold text-gray-600 mb-3">DEMO CREDENTIALS</p>
+          <div className="flex flex-col gap-3">
             {demoUsers.map((user, idx) => (
               <div
                 key={idx}
                 onClick={() => fillDemoUser(user)}
-                className={`flex items-center rounded-md bg-gray-100 px-3 py-2 border-2 cursor-pointer ${
-                  username === user.username ? "border-blue-500" : "border-gray-100 hover:border-blue-500"
+                className={`flex items-center justify-between rounded-lg border-2 px-3 py-2 cursor-pointer transition ${
+                  username === user.username
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-100 hover:border-blue-400 hover:bg-blue-50"
                 }`}
               >
-                <User className="h-7 w-7 text-blue-500 mr-2" />
-                <div className="flex flex-col gap-1 items-start">
-                  <p className="font-medium text-[15px]">{user.role}</p>
-                  <p className="text-[12px]">
-                    {user.username} | {user.password}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <User className="h-6 w-6 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-[15px] capitalize">{user.role}</p>
+                    <p className="text-xs text-gray-500">
+                      {user.username} | {user.password}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-gray-500 text-left text-[12px] pl-2">
-            Click on any staff to auto-fill credentials. Use the exact password shown.
-          </p>
 
-          <p className="text-[15px] mt-2">
+          <p className="mt-4 text-xs text-gray-500 text-center">Click any staff to auto-fill credentials.</p>
+
+          <p className="text-xs text-gray-500 text-center mt-2">
             Having trouble signing in?{" "}
-            <a className="text-blue-800" href="#">
+            <a href="#" className="text-blue-600 hover:underline">
               Contact IT Support
             </a>
           </p>
+        </div>
 
-          <div className="flex items-center justify-center space-x-2 mt-2 text-xs text-gray-500">
-            <Shield className="h-4 w-4" />
-            <span>Secure Admin Access</span>
-          </div>
+        <div className="flex items-center justify-center space-x-2 mt-6 text-xs text-gray-500">
+          <Shield className="h-4 w-4" />
+          <span>Secure Admin Access</span>
         </div>
       </div>
     </div>
