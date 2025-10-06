@@ -10,7 +10,7 @@ import { ROUTES } from "./components/Config/routes.config";
 import PatientsPage from "./components/Pages/PatientsPage";
 import PatientDetailsPage from "./components/Pages/PatientDetailsPage";
 import AppointmentsPage from "./components/Pages/AppointmentsPage";
-import FormsPage from "./components/Forms/FormsPage";
+import PatientFormPage from "./components/FormPage/PatientFormPage";
 
 function App() {
   return (
@@ -60,7 +60,7 @@ function App() {
               path={ROUTES.FORM}
               element={
                 <ProtectRoute allowedRoles={["admin", "doctor", "nurse"]}>
-                  <FormsPage />
+                  <PatientFormPage />
                 </ProtectRoute>
               }
             />

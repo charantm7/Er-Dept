@@ -6,7 +6,7 @@ export const ROUTES = {
   DOCTOR: "/doctor",
   NURSE: "/nurse",
   PATIENT: "/patients",
-  FORM: "/forms",
+  FORM: "/patient/:mrno/forms",
   PATIENTDETAILS: "/patient/:mrno",
   APPOINTMENT: "/appointments",
   LABREPORT: "/lab-results",

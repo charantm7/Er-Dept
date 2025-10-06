@@ -18,83 +18,36 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
+import { supabaseclient } from "../Config/supabase";
 
 const AppointmentsPage = () => {
   const navigate = useNavigate();
-  const { success, info } = useToast();
+  const { success, info, errorToast } = useToast();
   const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDate, setFilterDate] = useState("today");
   const [searchQuery, setSearchQuery] = useState("");
 
+  console.log(appointments);
+
   useEffect(() => {
     // TODO: Fetch from Supabase
-    // const fetchAppointments = async () => {
-    //   const { data, error } = await supabase
-    //     .from('appointments')
-    //     .select('*, patients(*), doctors(*)')
-    //     .order('date', { ascending: true });
-    //   if (!error) setAppointments(data);
-    // };
-
-    // Mock data
-    setAppointments([
-      {
-        id: 1,
-        patient: "John Doe",
-        mrno: "MR001234",
-        time: "09:00 AM",
-        date: "2025-10-05",
-        doctor: "Dr. Sarah Johnson",
-        dept: "Cardiology",
-        status: "completed",
-        payment: "paid",
-      },
-      {
-        id: 2,
-        patient: "Jane Smith",
-        mrno: "MR001235",
-        time: "10:30 AM",
-        date: "2025-10-05",
-        doctor: "Dr. Robert Wilson",
-        dept: "Emergency",
-        status: "in-progress",
-        payment: "pending",
-      },
-      {
-        id: 3,
-        patient: "Mike Brown",
-        mrno: "MR001236",
-        time: "11:00 AM",
-        date: "2025-10-05",
-        doctor: "Dr. James Taylor",
-        dept: "Neurology",
-        status: "scheduled",
-        payment: "pending",
-      },
-      {
-        id: 4,
-        patient: "Sarah Davis",
-        mrno: "MR001237",
-        time: "02:00 PM",
-        date: "2025-10-05",
-        doctor: "Dr. Sarah Johnson",
-        dept: "Cardiology",
-        status: "scheduled",
-        payment: "pending",
-      },
-      {
-        id: 5,
-        patient: "Tom Wilson",
-        mrno: "MR001238",
-        time: "03:30 PM",
-        date: "2025-10-05",
-        doctor: "Dr. Priya Sharma",
-        dept: "Pediatrics",
-        status: "cancelled",
-        payment: "refunded",
-      },
-    ]);
+    const fetchAppointments = async () => {
+      setLoading(true);
+      const { data, error } = await supabaseclient
+        .from("appointments")
+        .select("*, mrno(*), doctor_id(*)")
+        .order("date", { ascending: true });
+      if (!error) {
+        setAppointments(data);
+        setLoading(false);
+      } else {
+        console.error("Unable to load appointments!");
+        errorToast("Unable to load appointments!");
+      }
+    };
+    fetchAppointments();
   }, []);
 
   const handleCheckIn = (appointmentId) => {
@@ -140,10 +93,18 @@ const AppointmentsPage = () => {
   const filteredAppointments = appointments.filter((apt) => {
     const matchesStatus = filterStatus === "all" || apt.status === filterStatus;
     const matchesSearch =
-      apt.patient.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      apt.mrno.toLowerCase().includes(searchQuery.toLowerCase());
+      apt.mrno.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      apt.mrno.mrno.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-teal-50/20 p-6">
@@ -286,16 +247,16 @@ const AppointmentsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className="hover:bg-slate-50 transition-colors">
+                {filteredAppointments.map((appointment, idx) => (
+                  <tr key={appointment.appointment_id || idx} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-teal-100 rounded-lg">
                           <Users className="w-5 h-5 text-teal-600" />
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900">{appointment.patient}</p>
-                          <p className="text-xs text-slate-500">{appointment.mrno}</p>
+                          <p className="font-semibold text-slate-900">{appointment.mrno.name}</p>
+                          <p className="text-xs text-slate-500">{appointment.mrno.mrno}</p>
                         </div>
                       </div>
                     </td>
@@ -303,8 +264,8 @@ const AppointmentsPage = () => {
                       <div className="flex items-center gap-2">
                         <Stethoscope className="w-4 h-4 text-blue-600" />
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{appointment.doctor}</p>
-                          <p className="text-xs text-slate-500">{appointment.dept}</p>
+                          <p className="text-sm font-medium text-slate-900">{appointment.doctor_id.name}</p>
+                          <p className="text-xs text-slate-500">{appointment.appointment_type}</p>
                         </div>
                       </div>
                     </td>
@@ -363,7 +324,7 @@ const AppointmentsPage = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => navigate(`/patient/${appointment.mrno}`)}
+                          onClick={() => navigate(`/patient/${appointment.mrno.mrno}`)}
                           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                           <ChevronRight className="w-5 h-5 text-slate-400" />

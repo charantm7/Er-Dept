@@ -18,6 +18,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
+import { supabaseclient } from "../Config/supabase";
 
 const PatientDetailsPage = () => {
   const { mrno } = useParams();
@@ -28,25 +29,11 @@ const PatientDetailsPage = () => {
 
   useEffect(() => {
     // TODO: Fetch patient from Supabase
-    // const fetchPatient = async () => {
-    //   const { data, error } = await supabase
-    //     .from('patients')
-    //     .select('*')
-    //     .eq('mrno', mrno)
-    //     .single();
-    //   if (!error) setPatient(data);
-    // };
-    // fetchPatient();
-
-    // Mock data for now
-    setPatient({
-      name: "John Smith",
-      mrno: mrno,
-      ward: "ICU-2",
-      status: "critical",
-      condition: "Cardiac Arrest",
-      assignedTo: "Dr. Sarah Johnson",
-    });
+    const fetchPatient = async () => {
+      const { data, error } = await supabaseclient.from("users").select("*").eq("mrno", mrno).single();
+      if (!error) setPatient(data);
+    };
+    fetchPatient();
   }, [mrno]);
 
   if (!patient) {
