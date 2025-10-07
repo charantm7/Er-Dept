@@ -3,7 +3,6 @@ import { jsPDF } from "jspdf";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Save,
   Download,
   Send,
   Undo,
@@ -11,14 +10,8 @@ import {
   Eraser,
   Pen,
   Trash2,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
   FileText,
-  Share2,
   Printer,
-  Check,
-  X,
   Paintbrush,
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
@@ -41,10 +34,9 @@ const PatientFormPage = () => {
   const imageRef = useRef(null);
   const [ctx, setCtx] = useState(null);
   const [drawing, setDrawing] = useState(false);
-  const [tool, setTool] = useState("pen"); // pen, eraser, highlighter
+  const [tool, setTool] = useState("pen");
   const [color, setColor] = useState("#ff0000");
   const [lineWidth, setLineWidth] = useState(3);
-  const [zoom, setZoom] = useState(1);
 
   // History for undo/redo
   const [history, setHistory] = useState([]);
@@ -52,8 +44,6 @@ const PatientFormPage = () => {
 
   // UI States
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Preset colors
@@ -68,109 +58,94 @@ const PatientFormPage = () => {
     "#ff8800",
   ];
 
-  const [selectedForm, setForms] = useState([]);
+  const [selectedForms, setSelectedForms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
 
+  // Load all forms
   useEffect(() => {
-    async function loadForms() {
-      try {
-        let formFiles = [];
-        const allForms = [
-          "ACTIVITY CHART FOR BILLING(1 of 10)",
-          "ACTIVITY CHART FOR BILLING(10 of 10)",
-          "ACTIVITY CHART FOR BILLING(2 of 10)",
-          "ACTIVITY CHART FOR BILLING(3 of 10)",
-          "ACTIVITY CHART FOR BILLING(4 of 10)",
-          "ACTIVITY CHART FOR BILLING(5 of 10)",
-          "ACTIVITY CHART FOR BILLING(6 of 10)",
-          "ACTIVITY CHART FOR BILLING(7 of 10)",
-          "ACTIVITY CHART FOR BILLING(8 of 10)",
-          "ACTIVITY CHART FOR BILLING(9 of 10)",
-          "ADMISSION CONSENT KANNADA",
-          "ADMISSION CONSENT",
-          "CARE BUNDLE CHECK LIST (1)",
-          "CATHLAB HIGH RISK CONSENT FORM (2)",
-          "CONSENT FOR ADMISSION TO ICU & NICU & PICU",
-          "CONSENT FOR ANESTHESIA & SEDATION KANNADA",
-          "CONSENT FOR ANESTHESIA & SEDATION",
-          "CONSENT FOR CAG (1)",
-          "CONSENT FOR CAG (2)",
-          "CONSENT FOR CAG (PART B) -3",
-          "CONSENT FOR CAG (PART B) -4",
-          "CONSENT FOR HAEMODIALYSIS KANNADA",
-          "CONSENT FOR HAEMODIALYSIS",
-          "CONSENT FOR HIV TESTING KANNADA",
-          "CONSENT FOR HIV TESTING",
-          "CONSENT FOR RADIOLOGY - CT SCAN KANNADA",
-          "CONSENT FOR RADIOLOGY - CT SCAN",
-          "CONSENT FOR REFUSAL TREATMENT KANNADA",
-          "CONSENT FOR REFUSAL TREATMENT",
-          "CONSENT FOR SURGERY & PROCEDURES (1)",
-          "CONSENT FOR SURGERY & PROCEDURES (2)",
-          "CONSENT FORM FOR MTP KANNADA",
-          "CONSENT FORM FOR MTP",
-          "DIABETIC MONITORING CHART",
-          "ER DEPARTMENT INITIAL ASSESSMENT",
-          "ER DOCTOR INITIAL ASSESSMENT (1)",
-          "ER DOCTOR INITIAL ASSESSMENT (2)",
-          "HIGH RISK CONSENT FORM (CARDIAC) KANNADA",
-          "HIGH RISK CONSENT FORM (CARDIAC)",
-          "HIGH RISK CONSENT",
-          "INFORMED CONSENT FOR SURGERY & PROCEDURE (1 OF 2)",
-          "INFORMED CONSENT FOR SURGERY & PROCEDURE (2 OF 2)",
-          "INTAKE OUTPUT CHART",
-          "LAB INVESTIGATION CHART",
-          "LAPROSCOPY CONSENT KANNADA",
-          "LAPROSCOPY CONSENT",
-          "MEDICATION CHART (1)",
-          "MEDICATION CHART (2)",
-          "NURSES NOTES",
-          "PRE-OPERATIVE CHECK LIST FOR NURSES",
-          "SURGERY CONSENT PROCEDURE (1 OF 3) KANNADA",
-          "SURGERY CONSENT PROCEDURE (2 OF 3) KANNADA",
-          "SURGERY CONSENT PROCEDURE (3 OF 3) KANNADA",
-          "TPR CHART (1)",
-          "TPR CHART (2)",
-          "TPR CHART (3)",
-        ];
-        formFiles = allForms.map((formName) => ({
-          name: formName,
-          url: `/Forms/${formName}.jpg`,
-        }));
+    const allForms = [
+      "ACTIVITY CHART FOR BILLING(1 of 10)",
+      "ACTIVITY CHART FOR BILLING(2 of 10)",
+      "ACTIVITY CHART FOR BILLING(3 of 10)",
+      "ACTIVITY CHART FOR BILLING(4 of 10)",
+      "ACTIVITY CHART FOR BILLING(5 of 10)",
+      "ACTIVITY CHART FOR BILLING(6 of 10)",
+      "ACTIVITY CHART FOR BILLING(7 of 10)",
+      "ACTIVITY CHART FOR BILLING(8 of 10)",
+      "ACTIVITY CHART FOR BILLING(9 of 10)",
+      "ACTIVITY CHART FOR BILLING(10 of 10)",
+      "ADMISSION CONSENT",
+      "ADMISSION CONSENT KANNADA",
+      "CARE BUNDLE CHECK LIST (1)",
+      "CATHLAB HIGH RISK CONSENT FORM (2)",
+      "CONSENT FOR ADMISSION TO ICU & NICU & PICU",
+      "CONSENT FOR ANESTHESIA & SEDATION",
+      "CONSENT FOR ANESTHESIA & SEDATION KANNADA",
+      "CONSENT FOR CAG (1)",
+      "CONSENT FOR CAG (2)",
+      "CONSENT FOR CAG (PART B) -3",
+      "CONSENT FOR CAG (PART B) -4",
+      "CONSENT FOR HAEMODIALYSIS",
+      "CONSENT FOR HAEMODIALYSIS KANNADA",
+      "CONSENT FOR HIV TESTING",
+      "CONSENT FOR HIV TESTING KANNADA",
+      "CONSENT FOR RADIOLOGY - CT SCAN",
+      "CONSENT FOR RADIOLOGY - CT SCAN KANNADA",
+      "CONSENT FOR REFUSAL TREATMENT",
+      "CONSENT FOR REFUSAL TREATMENT KANNADA",
+      "CONSENT FOR SURGERY & PROCEDURES (1)",
+      "CONSENT FOR SURGERY & PROCEDURES (2)",
+      "CONSENT FORM FOR MTP",
+      "CONSENT FORM FOR MTP KANNADA",
+      "DIABETIC MONITORING CHART",
+      "ER DEPARTMENT INITIAL ASSESSMENT",
+      "ER DOCTOR INITIAL ASSESSMENT (1)",
+      "ER DOCTOR INITIAL ASSESSMENT (2)",
+      "HIGH RISK CONSENT",
+      "HIGH RISK CONSENT FORM (CARDIAC)",
+      "HIGH RISK CONSENT FORM (CARDIAC) KANNADA",
+      "INFORMED CONSENT FOR SURGERY & PROCEDURE (1 OF 2)",
+      "INFORMED CONSENT FOR SURGERY & PROCEDURE (2 OF 2)",
+      "INTAKE OUTPUT CHART",
+      "LAB INVESTIGATION CHART",
+      "LAPROSCOPY CONSENT",
+      "LAPROSCOPY CONSENT KANNADA",
+      "MEDICATION CHART (1)",
+      "MEDICATION CHART (2)",
+      "NURSES NOTES",
+      "PRE-OPERATIVE CHECK LIST FOR NURSES",
+      "SURGERY CONSENT PROCEDURE (1 OF 3) KANNADA",
+      "SURGERY CONSENT PROCEDURE (2 OF 3) KANNADA",
+      "SURGERY CONSENT PROCEDURE (3 OF 3) KANNADA",
+      "TPR CHART (1)",
+      "TPR CHART (2)",
+      "TPR CHART (3)",
+    ];
 
-        setForms(formFiles);
+    const formFiles = allForms.map((formName) => ({
+      name: formName,
+      url: `/Forms/${formName}.jpg`,
+    }));
 
-        const defaultForm =
-          formFiles.find((f) => f.name.includes("ACTIVITY CHART FOR BILLING(1 of 10)")) || formFiles[0];
+    setSelectedForms(formFiles);
 
-        setActiveForm(defaultForm);
-      } catch (error) {
-        console.error("Error loading forms:", error);
-      }
-    }
-
-    loadForms();
+    // Set default form
+    const defaultForm = formFiles[0];
+    setActiveForm(defaultForm);
   }, []);
-
-  const openForm = (form) => {
-    window.open(form.url, "_blank", "noopener,noreferrer");
-  };
 
   // Initialize canvas when form changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-
-    if (image && image.complete) {
+    if (imageLoaded && activeForm) {
       setupCanvas();
     }
-  }, [selectedForm, imageLoaded]);
+  }, [activeForm, imageLoaded]);
 
   const setupCanvas = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
 
-    if (!image || !image.complete) return;
+    if (!image || !image.complete || !canvas) return;
 
     // Set canvas size to match image
     canvas.width = image.naturalWidth;
@@ -182,12 +157,13 @@ const PatientFormPage = () => {
     setCtx(context);
 
     // Reset history
-    setHistory([getCanvasState()]);
+    const initialState = context.getImageData(0, 0, canvas.width, canvas.height);
+    setHistory([initialState]);
     setHistoryStep(0);
   };
 
   const getCanvasState = () => {
-    if (!ctx) return null;
+    if (!ctx || !canvasRef.current) return null;
     return ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
 
@@ -296,11 +272,16 @@ const PatientFormPage = () => {
   };
 
   const saveAsPNG = async () => {
+    if (!activeForm) {
+      showError("Please select a form first");
+      return;
+    }
+
     try {
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
       const link = document.createElement("a");
-      const fileName = `${patient.name.replace(/\s+/g, "_")}_${selectedForm.name.replace(/\s+/g, "_")}_${
+      const fileName = `${patient.name.replace(/\s+/g, "_")}_${activeForm.name.replace(/\s+/g, "_")}_${
         new Date().toISOString().split("T")[0]
       }.png`;
       link.download = fileName;
@@ -308,10 +289,6 @@ const PatientFormPage = () => {
       link.click();
 
       success("Form saved as PNG!");
-      // TODO: Save to Supabase storage
-      // const { data, error } = await supabase.storage
-      //   .from('medical-forms')
-      //   .upload(`${mrno}/${fileName}`, blob);
     } catch (err) {
       showError("Failed to save PNG");
       console.error(err);
@@ -321,6 +298,11 @@ const PatientFormPage = () => {
   };
 
   const saveAsPDF = async () => {
+    if (!activeForm) {
+      showError("Please select a form first");
+      return;
+    }
+
     try {
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
@@ -343,13 +325,12 @@ const PatientFormPage = () => {
       pdf.text(`MR No: ${patient.mrno}`, 10, imgHeight + 15);
       pdf.text(`Date: ${new Date().toLocaleDateString()}`, 10, imgHeight + 20);
 
-      const fileName = `${patient.name.replace(/\s+/g, "_")}_${selectedForm.name.replace(/\s+/g, "_")}_${
+      const fileName = `${patient.name.replace(/\s+/g, "_")}_${activeForm.name.replace(/\s+/g, "_")}_${
         new Date().toISOString().split("T")[0]
       }.pdf`;
       pdf.save(fileName);
 
       success("Form saved as PDF!");
-      // TODO: Save to Supabase
     } catch (err) {
       showError("Failed to save PDF");
       console.error(err);
@@ -358,6 +339,63 @@ const PatientFormPage = () => {
     }
   };
 
+  const sendToWhatsApp = async () => {
+    if (!activeForm) {
+      showError("Please select a form first");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const message = `Hi ${patient.name}, your ${activeForm.name} is ready. MR No: ${patient.mrno}`;
+      const whatsappUrl = `https://wa.me/${patient.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+        message
+      )}`;
+
+      window.open(whatsappUrl, "_blank");
+      success("Opening WhatsApp...");
+    } catch (err) {
+      showError("Failed to send to WhatsApp");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const printForm = () => {
+    if (!activeForm) {
+      showError("Please select a form first");
+      return;
+    }
+
+    const mergedCanvas = mergeCanvasWithImage();
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${activeForm.name} - ${patient.name}</title>
+          <style>
+            body { margin: 0; padding: 20px; }
+            img { max-width: 100%; height: auto; }
+            .info { margin-bottom: 20px; font-family: Arial; }
+          </style>
+        </head>
+        <body>
+          <div class="info">
+            <h2>${activeForm.name}</h2>
+            <p><strong>Patient:</strong> ${patient.name}</p>
+            <p><strong>MR No:</strong> ${patient.mrno}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+          </div>
+          <img src="${mergedCanvas.toDataURL()}" />
+          <script>window.print(); window.close();</script>
+        </body>
+      </html>
+    `);
+  };
+
+  // Touch event handlers
   const getTouchCoordinates = (touch) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -377,6 +415,22 @@ const PatientFormPage = () => {
     const { x, y } = getTouchCoordinates(e.touches[0]);
     ctx.beginPath();
     ctx.moveTo(x, y);
+
+    if (tool === "eraser") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+      ctx.lineWidth = lineWidth * 3;
+    } else if (tool === "highlighter") {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth * 4;
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+    }
   };
 
   const handleTouchMove = (e) => {
@@ -389,7 +443,6 @@ const PatientFormPage = () => {
 
   const handleTouchEnd = (e) => {
     e.preventDefault();
-    if (!ctx) return;
     if (drawing) {
       ctx.closePath();
       saveHistory();
@@ -397,66 +450,9 @@ const PatientFormPage = () => {
     setDrawing(false);
   };
 
-  const sendToWhatsApp = async () => {
-    try {
-      setSaving(true);
-
-      // Create blob from canvas
-      const mergedCanvas = mergeCanvasWithImage();
-      const blob = await new Promise((resolve) => mergedCanvas.toBlob(resolve, "image/png"));
-
-      // TODO: Upload to Supabase storage and get public URL
-      // const { data, error } = await supabase.storage
-      //   .from('medical-forms')
-      //   .upload(`temp/${Date.now()}.png`, blob);
-      // const publicUrl = supabase.storage.from('medical-forms').getPublicUrl(data.path).data.publicUrl;
-
-      // For now, use WhatsApp Web API
-      const message = `Hi ${patient.name}, your ${selectedForm.name} is ready. MR No: ${patient.mrno}`;
-      const whatsappUrl = `https://wa.me/${patient.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-        message
-      )}`;
-
-      window.open(whatsappUrl, "_blank");
-      success("Opening WhatsApp...");
-    } catch (err) {
-      showError("Failed to send to WhatsApp");
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const printForm = () => {
-    const mergedCanvas = mergeCanvasWithImage();
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${selectedForm.name} - ${patient.name}</title>
-          <style>
-            body { margin: 0; padding: 20px; }
-            img { max-width: 100%; height: auto; }
-            .info { margin-bottom: 20px; font-family: Arial; }
-          </style>
-        </head>
-        <body>
-          <div class="info">
-            <h2>${selectedForm.name}</h2>
-            <p><strong>Patient:</strong> ${patient.name}</p>
-            <p><strong>MR No:</strong> ${patient.mrno}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
-          <img src="${mergedCanvas.toDataURL()}" />
-          <script>window.print(); window.close();</script>
-        </body>
-      </html>
-    `);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br overflow-hidden from-slate-50 via-blue-50/30 to-teal-50/20 py-6">
-      <div className="w-full mx-auto px-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-teal-50/20 py-6">
+      <div className="max-w-[1800px] mx-auto px-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
@@ -474,17 +470,18 @@ const PatientFormPage = () => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={printForm}
-              className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              disabled={!activeForm}
+              className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Printer className="w-5 h-5" />
               Print
             </button>
             <button
               onClick={saveAsPNG}
-              disabled={saving}
+              disabled={saving || !activeForm}
               className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Download className="w-5 h-5" />
@@ -492,7 +489,7 @@ const PatientFormPage = () => {
             </button>
             <button
               onClick={saveAsPDF}
-              disabled={saving}
+              disabled={saving || !activeForm}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <FileText className="w-5 h-5" />
@@ -500,7 +497,7 @@ const PatientFormPage = () => {
             </button>
             <button
               onClick={sendToWhatsApp}
-              disabled={saving}
+              disabled={saving || !activeForm}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Send className="w-5 h-5" />
@@ -511,20 +508,28 @@ const PatientFormPage = () => {
 
         {/* Form Selection */}
         <div className="mb-6 bg-white rounded-xl shadow-md p-4 border border-slate-100">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Select Form Template</label>
+          <label className="block text-sm font-semibold text-slate-700 mb-3">
+            Select Form Template ({selectedForms.length} forms available)
+          </label>
           <select
-            className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full p-3 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
             value={activeForm?.name || ""}
             onChange={(e) => {
-              const form = selectedForm.find((f) => f.name === e.target.value);
-              setActiveForm(form);
-              setImageLoaded(false);
+              const form = selectedForms.find((f) => f.name === e.target.value);
+              if (form) {
+                setActiveForm(form);
+                setImageLoaded(false);
+                // Clear canvas when changing forms
+                if (ctx) {
+                  ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                }
+              }
             }}
           >
             <option value="" disabled>
               -- Select a form --
             </option>
-            {selectedForm.map((form) => (
+            {selectedForms.map((form) => (
               <option key={form.name} value={form.name}>
                 {form.name}
               </option>
@@ -573,7 +578,7 @@ const PatientFormPage = () => {
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="w-10 h-10 rounded cursor-pointer"
+                className="w-10 h-10 rounded cursor-pointer border border-slate-300"
               />
               <div className="flex gap-1">
                 {presetColors.map((c) => (
@@ -584,6 +589,7 @@ const PatientFormPage = () => {
                       color === c ? "border-slate-900 scale-110" : "border-slate-300"
                     }`}
                     style={{ backgroundColor: c }}
+                    title={c}
                   />
                 ))}
               </div>
@@ -600,7 +606,7 @@ const PatientFormPage = () => {
                 onChange={(e) => setLineWidth(Number(e.target.value))}
                 className="w-32"
               />
-              <span className="text-sm text-slate-600 w-8">{lineWidth}px</span>
+              <span className="text-sm text-slate-600 w-10">{lineWidth}px</span>
             </div>
 
             {/* Undo/Redo */}
@@ -609,7 +615,7 @@ const PatientFormPage = () => {
                 onClick={undo}
                 disabled={historyStep <= 0}
                 className="p-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Undo"
+                title="Undo (Ctrl+Z)"
               >
                 <Undo className="w-5 h-5" />
               </button>
@@ -617,7 +623,7 @@ const PatientFormPage = () => {
                 onClick={redo}
                 disabled={historyStep >= history.length - 1}
                 className="p-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Redo"
+                title="Redo (Ctrl+Y)"
               >
                 <Redo className="w-5 h-5" />
               </button>
@@ -626,7 +632,8 @@ const PatientFormPage = () => {
             {/* Clear */}
             <button
               onClick={clearCanvas}
-              className="p-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
+              disabled={!ctx}
+              className="p-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors disabled:opacity-50"
               title="Clear All"
             >
               <Trash2 className="w-5 h-5" />
@@ -635,61 +642,69 @@ const PatientFormPage = () => {
         </div>
 
         {/* Canvas Area */}
-        <div className="bg-white rounded-xl shadow-md p-4 border border-slate-100 flex justify-center">
-          <div className="relative">
-            <img
-              ref={imageRef}
-              src={activeForm?.url}
-              alt={activeForm?.name}
-              className="block w-full h-auto"
-              onLoad={() => {
-                setImageLoaded(true);
-                setupCanvas();
-              }}
-              style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-            />
-            <canvas
-              ref={canvasRef}
-              className="absolute top-0 left-0 cursor-crosshair"
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (touch.clientX - rect.left) * (canvasRef.current.width / rect.width);
-                const y = (touch.clientY - rect.top) * (canvasRef.current.height / rect.height);
-                startDrawing({ clientX: x, clientY: y });
-              }}
-              onTouchMove={(e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (touch.clientX - rect.left) * (canvasRef.current.width / rect.width);
-                const y = (touch.clientY - rect.top) * (canvasRef.current.height / rect.height);
-                draw({ clientX: x, clientY: y });
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                stopDrawing();
-              }}
-              style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-            />
+        {activeForm ? (
+          <div className="bg-white rounded-xl shadow-md p-6 border border-slate-100">
+            <div className="relative inline-block max-w-full overflow-auto">
+              <img
+                ref={imageRef}
+                src={activeForm.url}
+                alt={activeForm.name}
+                className="block max-w-full h-auto"
+                onLoad={() => {
+                  setImageLoaded(true);
+                }}
+                onError={() => {
+                  showError(`Failed to load form: ${activeForm.name}`);
+                }}
+              />
+              <canvas
+                ref={canvasRef}
+                className="absolute top-0 left-0 cursor-crosshair"
+                style={{ touchAction: "none" }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-md p-12 border border-slate-100 text-center">
+            <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">No Form Selected</h3>
+            <p className="text-slate-500">
+              Please select a form template from the dropdown above to get started.
+            </p>
+          </div>
+        )}
 
         {/* Instructions */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
+          <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Instructions:
+          </h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Select a form template from the dropdown above</li>
-            <li>• Use the pen tool to write or draw on the form</li>
-            <li>• Use the highlighter to emphasize important sections</li>
-            <li>• Use the eraser to remove annotations</li>
-            <li>• Save your work as PNG or PDF</li>
+            <li>• Select a form template from the dropdown above ({selectedForms.length} forms available)</li>
+            <li>
+              • Use the <strong>pen tool</strong> to write or draw on the form
+            </li>
+            <li>
+              • Use the <strong>highlighter</strong> to emphasize important sections (semi-transparent)
+            </li>
+            <li>
+              • Use the <strong>eraser</strong> to remove annotations
+            </li>
+            <li>• Adjust color and line width as needed</li>
+            <li>
+              • Use <strong>Undo/Redo</strong> to correct mistakes
+            </li>
+            <li>• Save your work as PNG or PDF format</li>
             <li>• Send directly to patient via WhatsApp</li>
+            <li>• Works on touch devices (tablets/phones)</li>
           </ul>
         </div>
       </div>
