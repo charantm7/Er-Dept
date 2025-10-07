@@ -28,25 +28,6 @@ const PatientFormPage = () => {
   const navigate = useNavigate();
   const { success, error: showError, info } = useToast();
 
-  // Available forms
-  const forms = [
-    {
-      id: 1,
-      name: "ACTIVITY CHART FOR BILLING(1 of 10)",
-      url: "Forms/ACTIVITY CHART FOR BILLING(1 of 10).jpg",
-      category: "General",
-    },
-    {
-      id: 2,
-      name: "ACTIVITY CHART FOR BILLING(2 of 10)",
-      url: "Forms/ACTIVITY CHART FOR BILLING(2 of 10).jpg",
-      category: "Laboratory",
-    },
-    { id: 3, name: "Prescription Form", url: "/forms/prescription.jpg", category: "Pharmacy" },
-    { id: 4, name: "Consent Form", url: "/forms/consent.jpg", category: "Legal" },
-    { id: 5, name: "Discharge Summary", url: "/forms/discharge.jpg", category: "Administrative" },
-  ];
-
   // Patient data - Replace with actual API call
   const [patient, setPatient] = useState({
     name: "John Smith",
@@ -58,7 +39,6 @@ const PatientFormPage = () => {
 
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
-  const [selectedForm, setSelectedForm] = useState(forms[0]);
   const [ctx, setCtx] = useState(null);
   const [drawing, setDrawing] = useState(false);
   const [tool, setTool] = useState("pen"); // pen, eraser, highlighter
@@ -87,6 +67,94 @@ const PatientFormPage = () => {
     "#00ffff",
     "#ff8800",
   ];
+
+  const [selectedForm, setForms] = useState([]);
+  const [activeForm, setActiveForm] = useState(null);
+
+  useEffect(() => {
+    async function loadForms() {
+      try {
+        let formFiles = [];
+        const allForms = [
+          "ACTIVITY CHART FOR BILLING(1 of 10)",
+          "ACTIVITY CHART FOR BILLING(10 of 10)",
+          "ACTIVITY CHART FOR BILLING(2 of 10)",
+          "ACTIVITY CHART FOR BILLING(3 of 10)",
+          "ACTIVITY CHART FOR BILLING(4 of 10)",
+          "ACTIVITY CHART FOR BILLING(5 of 10)",
+          "ACTIVITY CHART FOR BILLING(6 of 10)",
+          "ACTIVITY CHART FOR BILLING(7 of 10)",
+          "ACTIVITY CHART FOR BILLING(8 of 10)",
+          "ACTIVITY CHART FOR BILLING(9 of 10)",
+          "ADMISSION CONSENT KANNADA",
+          "ADMISSION CONSENT",
+          "CARE BUNDLE CHECK LIST (1)",
+          "CATHLAB HIGH RISK CONSENT FORM (2)",
+          "CONSENT FOR ADMISSION TO ICU & NICU & PICU",
+          "CONSENT FOR ANESTHESIA & SEDATION KANNADA",
+          "CONSENT FOR ANESTHESIA & SEDATION",
+          "CONSENT FOR CAG (1)",
+          "CONSENT FOR CAG (2)",
+          "CONSENT FOR CAG (PART B) -3",
+          "CONSENT FOR CAG (PART B) -4",
+          "CONSENT FOR HAEMODIALYSIS KANNADA",
+          "CONSENT FOR HAEMODIALYSIS",
+          "CONSENT FOR HIV TESTING KANNADA",
+          "CONSENT FOR HIV TESTING",
+          "CONSENT FOR RADIOLOGY - CT SCAN KANNADA",
+          "CONSENT FOR RADIOLOGY - CT SCAN",
+          "CONSENT FOR REFUSAL TREATMENT KANNADA",
+          "CONSENT FOR REFUSAL TREATMENT",
+          "CONSENT FOR SURGERY & PROCEDURES (1)",
+          "CONSENT FOR SURGERY & PROCEDURES (2)",
+          "CONSENT FORM FOR MTP KANNADA",
+          "CONSENT FORM FOR MTP",
+          "DIABETIC MONITORING CHART",
+          "ER DEPARTMENT INITIAL ASSESSMENT",
+          "ER DOCTOR INITIAL ASSESSMENT (1)",
+          "ER DOCTOR INITIAL ASSESSMENT (2)",
+          "HIGH RISK CONSENT FORM (CARDIAC) KANNADA",
+          "HIGH RISK CONSENT FORM (CARDIAC)",
+          "HIGH RISK CONSENT",
+          "INFORMED CONSENT FOR SURGERY & PROCEDURE (1 OF 2)",
+          "INFORMED CONSENT FOR SURGERY & PROCEDURE (2 OF 2)",
+          "INTAKE OUTPUT CHART",
+          "LAB INVESTIGATION CHART",
+          "LAPROSCOPY CONSENT KANNADA",
+          "LAPROSCOPY CONSENT",
+          "MEDICATION CHART (1)",
+          "MEDICATION CHART (2)",
+          "NURSES NOTES",
+          "PRE-OPERATIVE CHECK LIST FOR NURSES",
+          "SURGERY CONSENT PROCEDURE (1 OF 3) KANNADA",
+          "SURGERY CONSENT PROCEDURE (2 OF 3) KANNADA",
+          "SURGERY CONSENT PROCEDURE (3 OF 3) KANNADA",
+          "TPR CHART (1)",
+          "TPR CHART (2)",
+          "TPR CHART (3)",
+        ];
+        formFiles = allForms.map((formName) => ({
+          name: formName,
+          url: `/Forms/${formName}.jpg`,
+        }));
+
+        setForms(formFiles);
+
+        const defaultForm =
+          formFiles.find((f) => f.name.includes("ACTIVITY CHART FOR BILLING(1 of 10)")) || formFiles[0];
+
+        setActiveForm(defaultForm);
+      } catch (error) {
+        console.error("Error loading forms:", error);
+      }
+    }
+
+    loadForms();
+  }, []);
+
+  const openForm = (form) => {
+    window.open(form.url, "_blank", "noopener,noreferrer");
+  };
 
   // Initialize canvas when form changes
   useEffect(() => {
@@ -290,6 +358,45 @@ const PatientFormPage = () => {
     }
   };
 
+  const getTouchCoordinates = (touch) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const handleTouchStart = (e) => {
+    e.preventDefault();
+    if (!ctx) return;
+    setDrawing(true);
+    const { x, y } = getTouchCoordinates(e.touches[0]);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    if (!drawing || !ctx) return;
+    const { x, y } = getTouchCoordinates(e.touches[0]);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
+    if (!ctx) return;
+    if (drawing) {
+      ctx.closePath();
+      saveHistory();
+    }
+    setDrawing(false);
+  };
+
   const sendToWhatsApp = async () => {
     try {
       setSaving(true);
@@ -348,8 +455,8 @@ const PatientFormPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-teal-50/20 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br overflow-hidden from-slate-50 via-blue-50/30 to-teal-50/20 py-6">
+      <div className="w-full mx-auto px-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
@@ -404,25 +511,25 @@ const PatientFormPage = () => {
 
         {/* Form Selection */}
         <div className="mb-6 bg-white rounded-xl shadow-md p-4 border border-slate-100">
-          <label className="block text-sm font-semibold text-slate-700 mb-3">Select Form Template</label>
-          <div className="flex gap-2 flex-wrap">
-            {forms.map((form) => (
-              <button
-                key={form.id}
-                onClick={() => {
-                  setSelectedForm(form);
-                  setImageLoaded(false);
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedForm.id === form.id
-                    ? "bg-teal-600 text-white shadow-md"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Select Form Template</label>
+          <select
+            className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+            value={activeForm?.name || ""}
+            onChange={(e) => {
+              const form = selectedForm.find((f) => f.name === e.target.value);
+              setActiveForm(form);
+              setImageLoaded(false);
+            }}
+          >
+            <option value="" disabled>
+              -- Select a form --
+            </option>
+            {selectedForm.map((form) => (
+              <option key={form.name} value={form.name}>
                 {form.name}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         {/* Drawing Tools */}
@@ -528,53 +635,48 @@ const PatientFormPage = () => {
         </div>
 
         {/* Canvas Area */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-slate-100">
-          <div className="relative w-full overflow-auto" style={{ maxHeight: "70vh" }}>
-            <div className="relative inline-block">
-              <img
-                ref={imageRef}
-                src={selectedForm.url}
-                alt={selectedForm.name}
-                className="block max-w-full"
-                onLoad={() => {
-                  setImageLoaded(true);
-                  setupCanvas();
-                }}
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-              />
-              <canvas
-                ref={canvasRef}
-                className="absolute top-0 left-0 cursor-crosshair"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  const touch = e.touches[0];
-                  const mouseEvent = new MouseEvent("mousedown", {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                  });
-                  canvasRef.current.dispatchEvent(mouseEvent);
-                }}
-                onTouchMove={(e) => {
-                  e.preventDefault();
-                  const touch = e.touches[0];
-                  const mouseEvent = new MouseEvent("mousemove", {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                  });
-                  canvasRef.current.dispatchEvent(mouseEvent);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  const mouseEvent = new MouseEvent("mouseup", {});
-                  canvasRef.current.dispatchEvent(mouseEvent);
-                }}
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-              />
-            </div>
+        <div className="bg-white rounded-xl shadow-md p-4 border border-slate-100 flex justify-center">
+          <div className="relative">
+            <img
+              ref={imageRef}
+              src={activeForm?.url}
+              alt={activeForm?.name}
+              className="block w-full h-auto"
+              onLoad={() => {
+                setImageLoaded(true);
+                setupCanvas();
+              }}
+              style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+            />
+            <canvas
+              ref={canvasRef}
+              className="absolute top-0 left-0 cursor-crosshair"
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) * (canvasRef.current.width / rect.width);
+                const y = (touch.clientY - rect.top) * (canvasRef.current.height / rect.height);
+                startDrawing({ clientX: x, clientY: y });
+              }}
+              onTouchMove={(e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) * (canvasRef.current.width / rect.width);
+                const y = (touch.clientY - rect.top) * (canvasRef.current.height / rect.height);
+                draw({ clientX: x, clientY: y });
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                stopDrawing();
+              }}
+              style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+            />
           </div>
         </div>
 
