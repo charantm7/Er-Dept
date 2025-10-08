@@ -1,79 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabaseclient } from "../Config/supabase";
 
-const dummyUsers = [
-  { username: "admin", password: "1234", role: "admin" },
-  { username: "doc1", password: "docpass", role: "doctor" },
-  { username: "nurse1", password: "nursepass", role: "nurse" },
-];
-
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within the authprovider");
-  }
-
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // start true until we restore user
   const [user, setUser] = useState(null);
 
+  // ✅ Restore logged-in user from localStorage once
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const savedUser = localStorage.getItem("er_user");
-
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-
-          setUser(parsedUser);
-        } else {
-          console.log("No user found Login please");
-        }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    initializeAuth();
+    const savedUser = localStorage.getItem("er_user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
-  const login = (username, password) => {
-    const founduser = dummyUsers.find((u) => u.username === username && u.password === password);
-
-    if (founduser) {
-      const userWithoutPassword = { ...founduser };
-      delete userWithoutPassword.password;
-
-      setUser(userWithoutPassword);
-      localStorage.setItem("er_user", JSON.stringify(userWithoutPassword));
-
-      console.log("logedIn successfully:", userWithoutPassword.role);
-
-      return {
-        success: true,
-        user: userWithoutPassword,
-        redirectTo: getRoleBasedRedirect(founduser.role),
-      };
-    } else {
-      return {
-        success: false,
-        message: "Invalid Credentials",
-      };
-    }
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("er_user");
-  };
-
+  // ✅ Helper: redirect paths based on roles
   const getRoleBasedRedirect = (role) => {
     const redirectMap = {
       admin: "/admin",
@@ -81,6 +30,48 @@ export const AuthProvider = ({ children }) => {
       nurse: "/nurse",
     };
     return redirectMap[role] || "/";
+  };
+
+  // ✅ Login function
+  const login = async (email, password) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabaseclient.from("users").select("*").eq("email", email).single();
+
+      if (error || !data) {
+        console.error("Login error:", error?.message);
+        return { success: false, message: "User not found" };
+      }
+
+      // Validate password manually
+      if (data.password !== password) {
+        return { success: false, message: "Invalid password" };
+      }
+
+      const { password: _, ...userWithoutPassword } = data;
+      const userWithRole = { ...userWithoutPassword, role: "doctor" };
+      setUser(userWithRole);
+      localStorage.setItem("er_user", JSON.stringify(userWithoutPassword));
+
+      console.log("✅ Logged in successfully:", "doctor");
+
+      return {
+        success: true,
+        user: userWithoutPassword,
+        redirectTo: getRoleBasedRedirect("doctor"),
+      };
+    } catch (err) {
+      console.error("Auth error:", err);
+      return { success: false, message: "Something went wrong" };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Logout function
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("er_user");
   };
 
   return <AuthContext.Provider value={{ user, login, logout, loading }}>{children}</AuthContext.Provider>;
