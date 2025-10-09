@@ -471,7 +471,7 @@ const UnifiedDashboard = () => {
       title: "Lab Results",
       icon: Activity,
       color: "purple",
-      route: "lab-results",
+      route: "labreport",
       description: "View reports",
     },
     { title: "Billing", icon: DollarSign, color: "amber", route: "billing", description: "Payment records" },

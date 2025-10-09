@@ -11,6 +11,7 @@ export const ROUTES = {
   APPOINTMENT: "/appointments",
   LABREPORT: "/lab-results",
   BILLING: "/billing",
+  LABREPORT: "/labreport",
   UNAUTHORIZED: "/unauthorized",
 };
 

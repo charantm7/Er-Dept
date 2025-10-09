@@ -10,10 +10,10 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [loading, setLoading] = useState(true); // start true until we restore user
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
 
-  // ✅ Restore logged-in user from localStorage once
+  // ✅ Restore user from localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem("er_user");
     if (savedUser) {
@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ✅ Helper: redirect paths based on roles
+  // ✅ Role-based redirect helper
   const getRoleBasedRedirect = (role) => {
     const redirectMap = {
       admin: "/admin",
@@ -32,33 +32,33 @@ export const AuthProvider = ({ children }) => {
     return redirectMap[role] || "/";
   };
 
-  // ✅ Login function
+  // ✅ Login
   const login = async (email, password) => {
     setLoading(true);
     try {
       const { data, error } = await supabaseclient.from("users").select("*").eq("email", email).single();
 
       if (error || !data) {
-        console.error("Login error:", error?.message);
         return { success: false, message: "User not found" };
       }
 
-      // Validate password manually
       if (data.password !== password) {
         return { success: false, message: "Invalid password" };
       }
 
+      // ✅ Include role in saved data
       const { password: _, ...userWithoutPassword } = data;
-      const userWithRole = { ...userWithoutPassword, role: "doctor" };
-      setUser(userWithRole);
-      localStorage.setItem("er_user", JSON.stringify(userWithoutPassword));
+      const userWithRole = { ...userWithoutPassword, role: data.role || "doctor" };
 
-      console.log("✅ Logged in successfully:", "doctor");
+      setUser(userWithRole);
+      localStorage.setItem("er_user", JSON.stringify(userWithRole)); // ✅ FIXED
+
+      console.log("✅ Logged in as:", userWithRole.role);
 
       return {
         success: true,
-        user: userWithoutPassword,
-        redirectTo: getRoleBasedRedirect("doctor"),
+        user: userWithRole,
+        redirectTo: getRoleBasedRedirect(userWithRole.role),
       };
     } catch (err) {
       console.error("Auth error:", err);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ✅ Logout function
+  // ✅ Logout
   const logout = () => {
     setUser(null);
     localStorage.removeItem("er_user");

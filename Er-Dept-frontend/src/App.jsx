@@ -11,6 +11,7 @@ import PatientsPage from "./components/Pages/PatientsPage";
 import PatientDetailsPage from "./components/Pages/PatientDetailsPage";
 import AppointmentsPage from "./components/Pages/AppointmentsPage";
 import PatientFormPage from "./components/FormPage/PatientFormPage";
+import LabReports from "./components/Pages/LabReports";
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
                 </ProtectRoute>
               }
             />
+            <Route path={ROUTES.LABREPORT} element={<LabReports />} />
             <Route
               path={ROUTES.FORM}
               element={

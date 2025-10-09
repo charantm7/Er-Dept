@@ -14,17 +14,19 @@ import {
   Printer,
   Paintbrush,
   Save,
+  History,
+  X,
+  Eye,
+  ChevronRight,
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
-
-import { useAuth } from "../Auth/Authprovider";
+import { supabaseclient } from "../Config/supabase";
 
 const PatientFormPage = () => {
   const { mrno } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { success, errorToast: showError, info } = useToast();
-  console.log(user);
+
   const [patient] = useState({
     name: "John Smith",
     mrno: mrno,
@@ -39,18 +41,23 @@ const PatientFormPage = () => {
   const [color, setColor] = useState("#0000ff");
   const [lineWidth, setLineWidth] = useState(2);
 
-  // For ultra-smooth curves
-  const pointsRef = useRef([]);
-
   const [history, setHistory] = useState([]);
   const [historyStep, setHistoryStep] = useState(-1);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const presetColors = ["#000000", "#0000ff", "#ff0000", "#00ff00"];
+  // History sidebar
+  const [showHistory, setShowHistory] = useState(false);
+  const [formHistory, setFormHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
+  const presetColors = ["#000000", "#0000ff", "#ff0000", "#00ff00"];
   const [selectedForms, setSelectedForms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
+
+  // Optimized drawing for mobile/tablet
+  const lastPointRef = useRef({ x: 0, y: 0 });
+  const rafIdRef = useRef(null);
 
   useEffect(() => {
     const allForms = [
@@ -66,50 +73,6 @@ const PatientFormPage = () => {
       "ACTIVITY CHART FOR BILLING(10 of 10)",
       "ADMISSION CONSENT",
       "ADMISSION CONSENT KANNADA",
-      "CARE BUNDLE CHECK LIST (1)",
-      "CATHLAB HIGH RISK CONSENT FORM (2)",
-      "CONSENT FOR ADMISSION TO ICU & NICU & PICU",
-      "CONSENT FOR ANESTHESIA & SEDATION",
-      "CONSENT FOR ANESTHESIA & SEDATION KANNADA",
-      "CONSENT FOR CAG (1)",
-      "CONSENT FOR CAG (2)",
-      "CONSENT FOR CAG (PART B) -3",
-      "CONSENT FOR CAG (PART B) -4",
-      "CONSENT FOR HAEMODIALYSIS",
-      "CONSENT FOR HAEMODIALYSIS KANNADA",
-      "CONSENT FOR HIV TESTING",
-      "CONSENT FOR HIV TESTING KANNADA",
-      "CONSENT FOR RADIOLOGY - CT SCAN",
-      "CONSENT FOR RADIOLOGY - CT SCAN KANNADA",
-      "CONSENT FOR REFUSAL TREATMENT",
-      "CONSENT FOR REFUSAL TREATMENT KANNADA",
-      "CONSENT FOR SURGERY & PROCEDURES (1)",
-      "CONSENT FOR SURGERY & PROCEDURES (2)",
-      "CONSENT FORM FOR MTP",
-      "CONSENT FORM FOR MTP KANNADA",
-      "DIABETIC MONITORING CHART",
-      "ER DEPARTMENT INITIAL ASSESSMENT",
-      "ER DOCTOR INITIAL ASSESSMENT (1)",
-      "ER DOCTOR INITIAL ASSESSMENT (2)",
-      "HIGH RISK CONSENT",
-      "HIGH RISK CONSENT FORM (CARDIAC)",
-      "HIGH RISK CONSENT FORM (CARDIAC) KANNADA",
-      "INFORMED CONSENT FOR SURGERY & PROCEDURE (1 OF 2)",
-      "INFORMED CONSENT FOR SURGERY & PROCEDURE (2 OF 2)",
-      "INTAKE OUTPUT CHART",
-      "LAB INVESTIGATION CHART",
-      "LAPROSCOPY CONSENT",
-      "LAPROSCOPY CONSENT KANNADA",
-      "MEDICATION CHART (1)",
-      "MEDICATION CHART (2)",
-      "NURSES NOTES",
-      "PRE-OPERATIVE CHECK LIST FOR NURSES",
-      "SURGERY CONSENT PROCEDURE (1 OF 3) KANNADA",
-      "SURGERY CONSENT PROCEDURE (2 OF 3) KANNADA",
-      "SURGERY CONSENT PROCEDURE (3 OF 3) KANNADA",
-      "TPR CHART (1)",
-      "TPR CHART (2)",
-      "TPR CHART (3)",
     ];
 
     const formFiles = allForms.map((name) => ({ name, url: `/Forms/${name}.jpg` }));
@@ -121,6 +84,29 @@ const PatientFormPage = () => {
     if (imageLoaded && activeForm) setupCanvas();
   }, [activeForm, imageLoaded]);
 
+  useEffect(() => {
+    if (mrno) fetchFormHistory();
+  }, [mrno]);
+
+  const fetchFormHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabaseclient
+        .from("patient_er_forms")
+        .select("*")
+        .eq("patient_mrno", mrno)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setFormHistory(data || []);
+    } catch (err) {
+      console.error("Error fetching history:", err);
+      showError("Failed to load history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const setupCanvas = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -131,14 +117,13 @@ const PatientFormPage = () => {
     canvas.style.width = "100%";
     canvas.style.height = "auto";
 
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext("2d", {
+      willReadFrequently: false,
+      desynchronized: true,
+    });
 
-    // Ultra-smooth drawing settings
     context.lineCap = "round";
     context.lineJoin = "round";
-    context.lineWidth = lineWidth;
-    context.strokeStyle = color;
-
     setCtx(context);
 
     const initialState = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -180,43 +165,17 @@ const PatientFormPage = () => {
     };
   };
 
-  // Catmull-Rom spline for ultra-smooth curves
-  const drawSmoothLine = (points) => {
-    if (!ctx || points.length < 2) return;
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-
-    if (points.length === 2) {
-      ctx.lineTo(points[1].x, points[1].y);
-    } else {
-      for (let i = 1; i < points.length - 2; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-
-      // For the last segment
-      const last = points.length - 1;
-      ctx.quadraticCurveTo(points[last - 1].x, points[last - 1].y, points[last].x, points[last].y);
-    }
-
-    ctx.stroke();
-  };
-
   const startDrawing = (e) => {
     if (!ctx) return;
     e.preventDefault();
     setIsDrawing(true);
 
     const { x, y } = getCoordinates(e);
-    pointsRef.current = [{ x, y }];
+    lastPointRef.current = { x, y };
 
-    // Set tool properties
     if (tool === "eraser") {
       ctx.globalCompositeOperation = "destination-out";
       ctx.lineWidth = lineWidth * 5;
-      ctx.strokeStyle = "rgba(0,0,0,1)";
     } else if (tool === "highlighter") {
       ctx.globalCompositeOperation = "source-over";
       ctx.globalAlpha = 0.3;
@@ -228,49 +187,45 @@ const PatientFormPage = () => {
       ctx.strokeStyle = color;
       ctx.lineWidth = lineWidth;
     }
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
   };
 
   const draw = (e) => {
     if (!isDrawing || !ctx) return;
     e.preventDefault();
 
-    const { x, y } = getCoordinates(e);
-    pointsRef.current.push({ x, y });
+    if (rafIdRef.current) return; // Skip if already processing
 
-    // Redraw the entire path for smoothness
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    rafIdRef.current = requestAnimationFrame(() => {
+      const { x, y } = getCoordinates(e);
+      const lastPoint = lastPointRef.current;
 
-    // Restore the history
-    if (history[historyStep]) {
-      ctx.putImageData(history[historyStep], 0, 0);
-    }
+      // Interpolate for smoothness
+      const midX = (lastPoint.x + x) / 2;
+      const midY = (lastPoint.y + y) / 2;
 
-    // Reset tool properties before drawing
-    if (tool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = lineWidth * 5;
-    } else if (tool === "highlighter") {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 0.3;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth * 6;
-    } else {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.globalAlpha = 1.0;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
-    }
+      ctx.quadraticCurveTo(lastPoint.x, lastPoint.y, midX, midY);
+      ctx.stroke();
 
-    drawSmoothLine(pointsRef.current);
+      lastPointRef.current = { x, y };
+      rafIdRef.current = null;
+    });
   };
 
   const stopDrawing = (e) => {
     if (!isDrawing) return;
     if (e) e.preventDefault();
 
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+
+    ctx.closePath();
     setIsDrawing(false);
     saveHistory();
-    pointsRef.current = [];
   };
 
   const undo = () => {
@@ -290,7 +245,7 @@ const PatientFormPage = () => {
   };
 
   const clearCanvas = () => {
-    if (!ctx || !window.confirm("Clear all? This cannot be undone.")) return;
+    if (!ctx || !window.confirm("Clear all?")) return;
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     saveHistory();
     success("Canvas cleared");
@@ -314,48 +269,42 @@ const PatientFormPage = () => {
     if (!activeForm) return showError("Please select a form first");
 
     try {
+      info("Saving to supabase...");
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
-
       const blob = await new Promise((resolve) => mergedCanvas.toBlob(resolve, "image/png"));
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `${mrno}/${activeForm.name.replace(/\s+/g, "_")}_${timestamp}.png`;
 
-      const { data: uploadData, error: uploadError } = await supabaseclient.storage
-        .from("er_forms")
-        .upload(fileName, blob, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: "image/png",
-        });
+      const { error: uploadError } = await supabaseclient.storage.from("er_forms").upload(fileName, blob, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: "image/png",
+      });
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabaseclient.storage.from("er_forms").getPublicUrl(fileName);
 
-      const { data: dbData, error: dbError } = await supabaseclient
-        .from("patient_er_forms")
-        .insert([
-          {
-            patient_mrno: mrno,
-            form_name: activeForm.name,
-            file_url: urlData.publicUrl,
-
-            file_path: fileName,
-            file_size: blob.size,
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select();
+      const { error: dbError } = await supabaseclient.from("patient_er_forms").insert([
+        {
+          patient_mrno: mrno,
+          form_name: activeForm.name,
+          file_url: urlData.publicUrl,
+          file_path: fileName,
+          file_type: "img/png",
+          file_size: blob.size,
+        },
+      ]);
 
       if (dbError) throw dbError;
 
       success("Form saved successfully!");
+      fetchFormHistory(); // Refresh history
       return urlData.publicUrl;
     } catch (err) {
-      showError(`Failed to save: ${err.message}`);
-      console.error(err);
+      showError(`Failed: ${err.message}`);
       return null;
     } finally {
       setSaving(false);
@@ -363,265 +312,313 @@ const PatientFormPage = () => {
   };
 
   const saveAsPNG = async () => {
-    if (!activeForm) return showError("Please select a form first");
+    if (!activeForm) return showError("Select a form first");
     try {
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
       const link = document.createElement("a");
-      link.download = `${patient.name.replace(/\s+/g, "_")}_${activeForm.name.replace(/\s+/g, "_")}_${
-        new Date().toISOString().split("T")[0]
-      }.png`;
+      link.download = `${patient.name.replace(/\s+/g, "_")}_${activeForm.name.replace(/\s+/g, "_")}.png`;
       link.href = mergedCanvas.toDataURL("image/png");
       link.click();
-      success("Form saved as PNG!");
-    } catch (err) {
-      showError("Failed to save PNG");
+      success("Saved as PNG!");
     } finally {
       setSaving(false);
     }
   };
 
   const saveAsPDF = async () => {
-    if (!activeForm) return showError("Please select a form first");
+    if (!activeForm) return showError("Select a form first");
     try {
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
-      const imgData = mergedCanvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const imgWidth = 210;
       const imgHeight = (mergedCanvas.height * imgWidth) / mergedCanvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-      pdf.setFontSize(10);
-      pdf.text(`Patient: ${patient.name}`, 10, imgHeight + 10);
-      pdf.text(`MR No: ${patient.mrno}`, 10, imgHeight + 15);
-      pdf.text(`Date: ${new Date().toLocaleDateString()}`, 10, imgHeight + 20);
+      pdf.addImage(mergedCanvas.toDataURL("image/png"), "PNG", 0, 0, imgWidth, imgHeight);
       pdf.save(`${patient.name.replace(/\s+/g, "_")}_${activeForm.name.replace(/\s+/g, "_")}.pdf`);
-      success("Form saved as PDF!");
-    } catch (err) {
-      showError("Failed to save PDF");
+      success("Saved as PDF!");
     } finally {
       setSaving(false);
     }
   };
 
   const sendToWhatsApp = async () => {
-    if (!activeForm) return showError("Please select a form first");
-    try {
-      info("Saving to database...");
-      const publicUrl = await saveToSupabase();
-      if (publicUrl) {
-        const message = `Hi ${patient.name}, your ${activeForm.name} is ready.\n\nView: ${publicUrl}\n\nMR: ${patient.mrno}`;
-        window.open(
-          `https://wa.me/${patient.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
-          "_blank"
-        );
-        success("Sent to WhatsApp!");
-      }
-    } catch (err) {
-      showError("Failed to send");
+    if (!activeForm) return showError("Select a form first");
+    info("Saving...");
+    const publicUrl = await saveToSupabase();
+    if (publicUrl) {
+      const message = `Hi ${patient.name}, your ${activeForm.name} is ready.\n\nView: ${publicUrl}\n\nMR: ${patient.mrno}`;
+      window.open(
+        `https://wa.me/${patient.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+      success("Sent!");
     }
   };
 
   const printForm = () => {
-    if (!activeForm) return showError("Please select a form first");
+    if (!activeForm) return showError("Select a form first");
     const mergedCanvas = mergeCanvasWithImage();
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
-      <html><head><title>${activeForm.name}</title>
-      <style>body{margin:0;padding:20px;}img{max-width:100%;}</style>
-      </head><body><h2>${activeForm.name}</h2><p><b>Patient:</b> ${patient.name}</p>
-      <p><b>MR:</b> ${patient.mrno}</p><p><b>Date:</b> ${new Date().toLocaleDateString()}</p>
+      <html><head><title>${
+        activeForm.name
+      }</title><style>body{margin:0;padding:20px;}img{max-width:100%;}</style>
+      </head><body><h2>${activeForm.name}</h2><p><b>Patient:</b> ${patient.name}</p><p><b>MR:</b> ${
+      patient.mrno
+    }</p>
       <img src="${mergedCanvas.toDataURL()}" /><script>window.print();window.close();</script></body></html>
     `);
   };
 
+  const viewHistoryForm = (formUrl) => {
+    window.open(formUrl, "_blank");
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-slate-100">
-      <div className="bg-white border-b border-[#00000045] px-4 py-2 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(`/patient/${mrno}`)} className="p-1.5 hover:bg-slate-100 rounded">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold">Medical Forms</h1>
-            <p className="text-xs text-slate-500">
-              {patient.name} • {patient.mrno}
-            </p>
+    <div className="h-screen flex bg-slate-100">
+      {/* History Sidebar */}
+      <div
+        className={`bg-white border-r transition-all duration-300 ${
+          showHistory ? "w-80" : "w-0"
+        } overflow-hidden`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h2 className="font-bold text-lg">Form History</h2>
+            <button onClick={() => setShowHistory(false)} className="p-1 hover:bg-slate-100 rounded">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {loadingHistory ? (
+              <div className="text-center py-8 text-slate-500">Loading...</div>
+            ) : formHistory.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">No forms saved yet</div>
+            ) : (
+              <div className="space-y-3">
+                {formHistory.map((form) => (
+                  <div
+                    key={form.id}
+                    className="bg-slate-50 p-3 rounded-lg border hover:border-teal-500 transition-all cursor-pointer"
+                    onClick={() => viewHistoryForm(form.file_url)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-slate-900 truncate">{form.form_name}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {new Date(form.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">{(form.file_size / 1024).toFixed(0)} KB</p>
+                      </div>
+                      <Eye className="w-4 h-4 text-slate-400 flex-shrink-0 mt-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex gap-1">
-          <button
-            onClick={saveToSupabase}
-            disabled={saving || !activeForm}
-            className="p-2 hover:bg-teal-50 rounded text-teal-600"
-            title="Save"
-          >
-            <Save className="w-4 h-4" />
-          </button>
-          <button
-            onClick={printForm}
-            disabled={!activeForm}
-            className="p-2 hover:bg-slate-100 rounded"
-            title="Print"
-          >
-            <Printer className="w-4 h-4" />
-          </button>
-          <button
-            onClick={saveAsPNG}
-            disabled={saving || !activeForm}
-            className="p-2 hover:bg-slate-100 rounded"
-            title="PNG"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          <button
-            onClick={saveAsPDF}
-            disabled={saving || !activeForm}
-            className="p-2 hover:bg-slate-100 rounded"
-            title="PDF"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-          <button
-            onClick={sendToWhatsApp}
-            disabled={saving || !activeForm}
-            className="p-2 hover:bg-slate-100 rounded"
-            title="WhatsApp"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
-      <div className="bg-white border-b border-[#00000045] px-4 py-2">
-        <select
-          className="w-full p-2 text-sm border border-[#00000045] rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-          value={activeForm?.name || ""}
-          onChange={(e) => {
-            const form = selectedForms.find((f) => f.name === e.target.value);
-            if (form) {
-              setActiveForm(form);
-              setImageLoaded(false);
-              if (ctx) {
-                ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                setHistory([]);
-                setHistoryStep(-1);
-              }
-            }
-          }}
-        >
-          <option value="">Select Form ({selectedForms.length})</option>
-          {selectedForms.map((form) => (
-            <option key={form.name} value={form.name}>
-              {form.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-        <div className="bg-white rounded-full shadow-2xl border px-3 py-2 flex items-center gap-2">
-          <button
-            onClick={() => setTool("pen")}
-            className={`p-2 rounded-full ${tool === "pen" ? "bg-teal-100" : ""}`}
-          >
-            <Pen className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setTool("highlighter")}
-            className={`p-2 rounded-full ${tool === "highlighter" ? "bg-yellow-100" : ""}`}
-          >
-            <Paintbrush className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setTool("eraser")}
-            className={`p-2 rounded-full ${tool === "eraser" ? "bg-red-100" : ""}`}
-          >
-            <Eraser className="w-4 h-4" />
-          </button>
-          <div className="w-px h-6 bg-slate-300"></div>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="w-8 h-8 rounded-full cursor-pointer"
-          />
-          {presetColors.map((c) => (
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <div className="bg-white border-b px-4 py-2 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(`/patient/${mrno}`)} className="p-1.5 hover:bg-slate-100 rounded">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
             <button
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-6 h-6 rounded-full border-2 ${color === c ? "border-black" : "border-slate-300"}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-          <div className="w-px h-6 bg-slate-300"></div>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            value={lineWidth}
-            onChange={(e) => setLineWidth(Number(e.target.value))}
-            className="w-20"
-          />
-          <span className="text-xs w-6">{lineWidth}</span>
-          <div className="w-px h-6 bg-slate-300"></div>
-          <button onClick={undo} disabled={historyStep <= 0} className="p-2 rounded-full disabled:opacity-30">
-            <Undo className="w-4 h-4" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={historyStep >= history.length - 1}
-            className="p-2 rounded-full disabled:opacity-30"
-          >
-            <Redo className="w-4 h-4" />
-          </button>
-          <button
-            onClick={clearCanvas}
-            disabled={!ctx}
-            className="p-2 rounded-full text-red-600 disabled:opacity-30"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+              onClick={() => setShowHistory(!showHistory)}
+              className={`p-1.5 rounded ${showHistory ? "bg-teal-100 text-teal-600" : "hover:bg-slate-100"}`}
+              title="History"
+            >
+              <History className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold">Medical Forms</h1>
+              <p className="text-xs text-slate-500">
+                {patient.name} • {patient.mrno}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={saveToSupabase}
+              disabled={saving || !activeForm}
+              className="p-2 hover:bg-teal-50 rounded text-teal-600"
+              title="Save"
+            >
+              <Save className="w-4 h-4" />
+            </button>
+            <button onClick={printForm} disabled={!activeForm} className="p-2 hover:bg-slate-100 rounded">
+              <Printer className="w-4 h-4" />
+            </button>
+            <button
+              onClick={saveAsPNG}
+              disabled={saving || !activeForm}
+              className="p-2 hover:bg-slate-100 rounded"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={saveAsPDF}
+              disabled={saving || !activeForm}
+              className="p-2 hover:bg-slate-100 rounded"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={sendToWhatsApp}
+              disabled={saving || !activeForm}
+              className="p-2 hover:bg-slate-100 rounded"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-auto bg-slate-200 p-4">
-        {activeForm ? (
-          <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
-            <div className="relative">
-              <img
-                ref={imageRef}
-                src={activeForm.url}
-                alt={activeForm.name}
-                className="block w-full h-auto select-none pointer-events-none"
-                draggable="false"
-                onLoad={() => setImageLoaded(true)}
-                onError={() => showError(`Failed to load form`)}
+        <div className="bg-white border-b px-4 py-2">
+          <select
+            className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+            value={activeForm?.name || ""}
+            onChange={(e) => {
+              const form = selectedForms.find((f) => f.name === e.target.value);
+              if (form) {
+                setActiveForm(form);
+                setImageLoaded(false);
+                if (ctx) {
+                  ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                  setHistory([]);
+                  setHistoryStep(-1);
+                }
+              }
+            }}
+          >
+            <option value="">Select Form ({selectedForms.length})</option>
+            {selectedForms.map((form) => (
+              <option key={form.name} value={form.name}>
+                {form.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-white rounded-full shadow-2xl border px-3 py-2 flex items-center gap-2">
+            <button
+              onClick={() => setTool("pen")}
+              className={`p-2 rounded-full ${tool === "pen" ? "bg-teal-100" : ""}`}
+            >
+              <Pen className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setTool("highlighter")}
+              className={`p-2 rounded-full ${tool === "highlighter" ? "bg-yellow-100" : ""}`}
+            >
+              <Paintbrush className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setTool("eraser")}
+              className={`p-2 rounded-full ${tool === "eraser" ? "bg-red-100" : ""}`}
+            >
+              <Eraser className="w-4 h-4" />
+            </button>
+            <div className="w-px h-6 bg-slate-300"></div>
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-8 h-8 rounded-full cursor-pointer"
+            />
+            {presetColors.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-6 h-6 rounded-full border-2 ${
+                  color === c ? "border-black" : "border-slate-300"
+                }`}
+                style={{ backgroundColor: c }}
               />
-              <canvas
-                ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full cursor-crosshair"
-                style={{ touchAction: "none" }}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-                onTouchCancel={stopDrawing}
-              />
-            </div>
+            ))}
+            <div className="w-px h-6 bg-slate-300"></div>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              value={lineWidth}
+              onChange={(e) => setLineWidth(Number(e.target.value))}
+              className="w-20"
+            />
+            <span className="text-xs w-6">{lineWidth}</span>
+            <div className="w-px h-6 bg-slate-300"></div>
+            <button
+              onClick={undo}
+              disabled={historyStep <= 0}
+              className="p-2 rounded-full disabled:opacity-30"
+            >
+              <Undo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyStep >= history.length - 1}
+              className="p-2 rounded-full disabled:opacity-30"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={clearCanvas}
+              disabled={!ctx}
+              className="p-2 rounded-full text-red-600 disabled:opacity-30"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">No Form Selected</h3>
-              <p className="text-sm text-slate-500">Select a form above</p>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-slate-200 p-4">
+          {activeForm ? (
+            <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
+              <div className="relative">
+                <img
+                  ref={imageRef}
+                  src={activeForm.url}
+                  alt={activeForm.name}
+                  className="block w-full h-auto select-none pointer-events-none"
+                  draggable="false"
+                  onLoad={() => setImageLoaded(true)}
+                />
+                <canvas
+                  ref={canvasRef}
+                  className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+                  style={{ touchAction: "none" }}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  onTouchCancel={stopDrawing}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold">No Form Selected</h3>
+                <p className="text-sm text-slate-500">Select above</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
