@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Download,
@@ -22,10 +22,12 @@ import {
 import { useToast } from "../Context/ToastContext";
 import { supabaseclient } from "../Config/supabase";
 import { PencilLine } from "lucide-react";
+import OutPatientCaseSheet from "../Forms/OutPatientCaseSheet";
 
 const PatientFormPage = () => {
   const { mrno } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { success, errorToast: showError, info } = useToast();
 
   const [patient, setPatient] = useState(null);
@@ -52,14 +54,23 @@ const PatientFormPage = () => {
   const presetColors = ["#000000", "#0000ff", "#ff0000", "#00ff00"];
   const [selectedForms, setSelectedForms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
+  const [overwriteFormId, setOverwriteFormId] = useState(null);
+  const [overwriteFormData, setOverwriteFormData] = useState(null);
+  const [loadingOverwriteData, setLoadingOverwriteData] = useState(false);
+
+  // Debug overwriteFormData changes
+  useEffect(() => {
+    console.log("overwriteFormData state changed:", overwriteFormData);
+  }, [overwriteFormData]);
 
   // Optimized drawing for mobile/tablet
   const lastPointRef = useRef({ x: 0, y: 0 });
   const rafIdRef = useRef(null);
   const activePointerIdRef = useRef(null);
-  console.log(patient);
+
   useEffect(() => {
     const allForms = [
+      "GENERAL OUT PATIENT CASE SHEET",
       "ACTIVITY CHART FOR BILLING(1 of 10)",
       "ACTIVITY CHART FOR BILLING(2 of 10)",
       "ACTIVITY CHART FOR BILLING(3 of 10)",
@@ -160,6 +171,322 @@ const PatientFormPage = () => {
     if (mrno) fetchFormHistory();
   }, [mrno]);
 
+  // Handle overwrite data from localStorage
+  useEffect(() => {
+    console.log("=== OVERWRITE DEBUG ===");
+    console.log("Component mounted/updated");
+    console.log("SelectedForms length:", selectedForms.length);
+
+    // Check for overwrite data in localStorage
+    const storedOverwriteData = localStorage.getItem("overwriteFormData");
+    console.log("Stored overwrite data:", storedOverwriteData);
+
+    if (storedOverwriteData && selectedForms.length > 0) {
+      try {
+        const overwriteData = JSON.parse(storedOverwriteData);
+        console.log("Parsed overwrite data:", overwriteData);
+
+        // Check if data is recent (within 5 minutes)
+        const isRecent = Date.now() - overwriteData.timestamp < 5 * 60 * 1000;
+        console.log("Data is recent:", isRecent);
+
+        if (isRecent && overwriteData.formId && overwriteData.formName) {
+          setOverwriteFormId(overwriteData.formId);
+
+          // Find and set the form to overwrite
+          const formName = overwriteData.formName;
+          console.log("Looking for form:", formName);
+
+          // Try exact match first
+          let formToOverwrite = selectedForms.find((f) => f.name === formName);
+
+          // If no exact match, try case-insensitive match
+          if (!formToOverwrite) {
+            formToOverwrite = selectedForms.find((f) => f.name.toLowerCase() === formName.toLowerCase());
+          }
+
+          // If still no match, try partial match
+          if (!formToOverwrite) {
+            formToOverwrite = selectedForms.find(
+              (f) =>
+                f.name.toLowerCase().includes(formName.toLowerCase()) ||
+                formName.toLowerCase().includes(f.name.toLowerCase())
+            );
+          }
+
+          console.log("Found form:", formToOverwrite);
+
+          if (formToOverwrite) {
+            console.log("Setting active form:", formToOverwrite);
+            setActiveForm(formToOverwrite);
+            // Load the existing form data for all form types
+            console.log("Calling loadFormDataForOverwrite with formId:", overwriteData.formId);
+            loadFormDataForOverwrite(overwriteData.formId);
+            // Clear the stored data after use
+            localStorage.removeItem("overwriteFormData");
+            console.log("Cleared overwrite data from localStorage");
+          } else {
+            console.error("Form not found:", formName);
+            showError(`Form "${formName}" not found in available forms`);
+            localStorage.removeItem("overwriteFormData");
+          }
+        } else {
+          console.log("Overwrite data is too old or invalid, clearing it");
+          localStorage.removeItem("overwriteFormData");
+        }
+      } catch (error) {
+        console.error("Error parsing overwrite data:", error);
+        localStorage.removeItem("overwriteFormData");
+      }
+    }
+    console.log("=======================");
+  }, [selectedForms, mrno]);
+
+  // Handle overwrite when selectedForms loads after URL params are already present
+  // This is no longer needed since we're using localStorage
+  /* useEffect(() => {
+    const overwriteId = searchParams.get("overwrite");
+    const formName = searchParams.get("formName");
+
+    // Fallback: Try to read from window.location directly
+    const urlParams = new URLSearchParams(window.location.search);
+    const fallbackOverwriteId = urlParams.get("overwrite");
+    const fallbackFormName = urlParams.get("formName");
+
+    const finalOverwriteId = overwriteId || fallbackOverwriteId;
+    const finalFormName = formName || fallbackFormName;
+
+    if (finalOverwriteId && finalFormName && selectedForms.length > 0 && !overwriteFormId) {
+      console.log("Processing overwrite after selectedForms loaded");
+      const decodedFormName = decodeURIComponent(finalFormName);
+
+      let formToOverwrite = selectedForms.find((f) => f.name === decodedFormName);
+      if (!formToOverwrite) {
+        formToOverwrite = selectedForms.find((f) => f.name.toLowerCase() === decodedFormName.toLowerCase());
+      }
+      if (!formToOverwrite) {
+        formToOverwrite = selectedForms.find(
+          (f) =>
+            f.name.toLowerCase().includes(decodedFormName.toLowerCase()) ||
+            decodedFormName.toLowerCase().includes(f.name.toLowerCase())
+        );
+      }
+
+      if (formToOverwrite) {
+        setOverwriteFormId(finalOverwriteId);
+        setActiveForm(formToOverwrite);
+        loadFormDataForOverwrite(finalOverwriteId);
+        // Don't clear URL parameters immediately
+        // navigate(`/patient/${mrno}/forms`, { replace: true });
+      }
+    }
+  }, [selectedForms, searchParams, overwriteFormId, mrno, navigate]); */
+
+  const extractFormDataFromHTML = (htmlContent) => {
+    try {
+      console.log("Extracting form data from HTML content");
+      console.log("HTML content preview:", htmlContent.substring(0, 500));
+
+      // Extract data from HTML structure using regex patterns
+      const formData = {
+        name: "",
+        age: "",
+        dob: "",
+        sex: "Male",
+        phId: "",
+        date: new Date().toLocaleDateString(),
+        consultant: "",
+        department: "",
+        referringDr: "",
+        consultType: "New",
+        weight: "",
+        height: "",
+        bmi: "",
+        heartRate: "",
+        grbs: "",
+        bloodPressure: "",
+        spO2: "",
+        presentingComplaints: "",
+        historyOfPresentIllness: "",
+        pastMedicalHistory: "",
+        examination: "",
+        provisionalDiagnosis: "",
+        advice: "",
+        followUp: "",
+        allergy: "",
+        nutritionalAssessment: "Normal",
+        regularMedications: "",
+      };
+
+      // Updated patterns to match the actual HTML format
+      const patterns = {
+        name: /<strong>Name:<\/strong>\s*([^<\n]+)/i,
+        age: /<strong>Age\/DOB:<\/strong>\s*([^\/\n]+)\s*\/\s*([^<\n]+)/i,
+        sex: /<strong>Sex:<\/strong>\s*([^<\n]+)/i,
+        phId: /<strong>PH-ID:<\/strong>\s*([^<\n]+)/i,
+        date: /<strong>Date:<\/strong>\s*([^<\n]+)/i,
+        consultant: /<strong>Consultant:<\/strong>\s*([^<\n]+)/i,
+        department: /<strong>Department:<\/strong>\s*([^<\n]+)/i,
+        referringDr: /<strong>Referring Dr\/Centre:<\/strong>\s*([^<\n]+)/i,
+        consultType: /<strong>Type of consult:<\/strong>\s*([^<\n]+)/i,
+        weight: /<strong>Weight:<\/strong>\s*([^<\s]+)/i,
+        height: /<strong>Height:<\/strong>\s*([^<\s]+)/i,
+        bmi: /<strong>BMI:<\/strong>\s*([^<\s]+)/i,
+        heartRate: /<strong>Heart Rate:<\/strong>\s*([^<\s]+)/i,
+        grbs: /<strong>GRBS:<\/strong>\s*([^<\s]+)/i,
+        bloodPressure: /<strong>Blood Pressure:<\/strong>\s*([^<\s]+)/i,
+        spO2: /<strong>SpO2:<\/strong>\s*([^<\s]+)/i,
+        presentingComplaints: /<strong>Presenting complaints:<\/strong>\s*([^<\n]+)/i,
+        historyOfPresentIllness: /<strong>History of Present Illness:<\/strong>\s*([^<\n]+)/i,
+        pastMedicalHistory: /<strong>Past medical History:<\/strong>\s*([^<\n]+)/i,
+        examination: /<strong>Examination:<\/strong>\s*([^<\n]+)/i,
+        provisionalDiagnosis: /<strong>Provisional Diagnosis:<\/strong>\s*([^<\n]+)/i,
+        advice: /<strong>Advice:<\/strong>\s*([^<\n]+)/i,
+        followUp: /<strong>Follow up:<\/strong>\s*([^<\n]+)/i,
+        allergy: /<strong>Allergy:<\/strong>\s*([^<\n]+)/i,
+        nutritionalAssessment: /<strong>Nutritional Assessment:<\/strong>\s*([^<\n]+)/i,
+        regularMedications: /<strong>Regular Medications:<\/strong>\s*([^<\n]+)/i,
+      };
+
+      // Extract values using patterns
+      for (const [key, pattern] of Object.entries(patterns)) {
+        const match = htmlContent.match(pattern);
+        if (match) {
+          console.log(`Found ${key}:`, match[1]);
+          if (key === "age" && match[1] && match[2]) {
+            formData.age = match[1].trim();
+            formData.dob = match[2].trim();
+          } else if (key === "weight" && match[1]) {
+            formData.weight = match[1].trim();
+          } else if (key === "height" && match[1]) {
+            formData.height = match[1].trim();
+          } else if (key === "bmi" && match[1]) {
+            formData.bmi = match[1].trim();
+          } else if (key === "heartRate" && match[1]) {
+            formData.heartRate = match[1].trim();
+          } else if (key === "grbs" && match[1]) {
+            formData.grbs = match[1].trim();
+          } else if (key === "bloodPressure" && match[1]) {
+            formData.bloodPressure = match[1].trim();
+          } else if (key === "spO2" && match[1]) {
+            formData.spO2 = match[1].trim();
+          } else if (match[1]) {
+            formData[key] = match[1].trim();
+          }
+        }
+      }
+
+      console.log("Extracted form data:", formData);
+      return formData;
+    } catch (err) {
+      console.error("Error extracting form data from HTML:", err);
+      return null;
+    }
+  };
+
+  const loadFormDataForOverwrite = async (formId) => {
+    setLoadingOverwriteData(true);
+    console.log("Loading form data for overwrite, formId:", formId);
+
+    try {
+      const { data, error } = await supabaseclient
+        .from("patient_er_forms")
+        .select("*")
+        .eq("id", formId)
+        .single();
+
+      if (error) throw error;
+      console.log("Fetched form data from database:", data);
+
+      let formData = null;
+
+      // If it's an HTML form, try to extract the data
+      if (data.file_type === "text/html") {
+        try {
+          const response = await fetch(data.file_url);
+          const content = await response.text();
+          console.log("Fetched HTML content, length:", content.length);
+
+          // Since we know the format is HTML with <strong> tags, try HTML extraction first
+          console.log("Trying HTML extraction first");
+          formData = extractFormDataFromHTML(content);
+
+          // If HTML extraction didn't work, try JSON patterns as fallback
+          if (!formData || Object.values(formData).every((val) => !val || val === "")) {
+            console.log("HTML extraction failed, trying JSON patterns");
+
+            // Pattern 1: Look for JSON in a div with specific structure
+            const jsonMatch1 = content.match(
+              /<div[^>]*style="white-space: pre-wrap;"[^>]*>(\{[\s\S]*?\})<\/div>/
+            );
+            if (jsonMatch1) {
+              console.log("Found JSON pattern 1");
+              formData = JSON.parse(jsonMatch1[1]);
+            } else {
+              // Pattern 2: Look for JSON anywhere in the content that contains form fields
+              const jsonMatch2 = content.match(/\{[\s\S]*?"name"[\s\S]*?"phId"[\s\S]*?\}/);
+              if (jsonMatch2) {
+                console.log("Found JSON pattern 2");
+                formData = JSON.parse(jsonMatch2[0]);
+              } else {
+                // Pattern 3: Look for any JSON object that looks like form data
+                const jsonMatch3 = content.match(/\{[\s\S]*?"name"[\s\S]*?\}/);
+                if (jsonMatch3) {
+                  try {
+                    console.log("Found JSON pattern 3");
+                    formData = JSON.parse(jsonMatch3[0]);
+                  } catch (e) {
+                    console.log("Could not parse JSON from HTML");
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching HTML content:", err);
+        }
+      } else {
+        // For image-based forms, we need to load the existing image as background
+        console.log("Image-based form detected, loading existing image for overwrite");
+
+        // Set the form URL to the existing image so it loads as background
+        if (data.file_url) {
+          console.log("Setting existing image URL:", data.file_url);
+          // Update the active form to use the existing image
+          setActiveForm((prev) => ({
+            ...prev,
+            url: data.file_url,
+            isOverwriteImage: true,
+          }));
+        }
+
+        // Don't set formData for image forms - we just need the image loaded
+        formData = null;
+        info("Loading existing form image. You can now draw on it and save your changes.");
+      }
+
+      console.log("Final form data:", formData);
+
+      if (formData) {
+        setOverwriteFormData(formData);
+        info("Form ready for editing");
+        console.log("Set overwrite form data successfully");
+      } else if (data.file_type !== "text/html") {
+        // For image forms, we don't need formData - just the image loaded
+        console.log("Image form loaded successfully - ready for drawing");
+        setOverwriteFormData(null); // Clear any previous form data
+      } else {
+        console.error("No form data extracted");
+        showError("Could not load form data");
+      }
+    } catch (err) {
+      console.error("Error loading form data:", err);
+      showError("Could not load form data");
+    } finally {
+      setLoadingOverwriteData(false);
+    }
+  };
+
   const fetchFormHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -204,6 +531,12 @@ const PatientFormPage = () => {
       canvas.height = Math.floor(displayH * dpr);
       canvas.style.width = `${displayW}px`;
       canvas.style.height = `${displayH}px`;
+
+      console.log("Canvas setup:");
+      console.log("Display size:", displayW, "x", displayH);
+      console.log("Canvas actual size:", canvas.width, "x", canvas.height);
+      console.log("Canvas style size:", canvas.style.width, "x", canvas.style.height);
+      console.log("DPR:", dpr);
 
       // Create context (no experimental flags)
       const context = canvas.getContext("2d");
@@ -443,9 +776,19 @@ const PatientFormPage = () => {
     const canvas = canvasRef.current;
     if (!image || !canvas) throw new Error("Image or canvas not found");
 
+    console.log("Merging canvas with image");
+    console.log("Image natural size:", image.naturalWidth, "x", image.naturalHeight);
+    console.log("Canvas actual size:", canvas.width, "x", canvas.height);
+    console.log("Canvas style size:", canvas.style.width, "x", canvas.style.height);
+    console.log(
+      "Image display size:",
+      image.getBoundingClientRect().width,
+      "x",
+      image.getBoundingClientRect().height
+    );
+
     // Create a high-resolution canvas for export
     const tempCanvas = document.createElement("canvas");
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = image.getBoundingClientRect();
 
     // Use natural image size for high quality export
@@ -453,31 +796,68 @@ const PatientFormPage = () => {
     tempCanvas.height = image.naturalHeight;
     const tempCtx = tempCanvas.getContext("2d");
 
+    // Enable high quality rendering
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = "high";
+
     // Draw the original image
     tempCtx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
 
-    // Scale and draw the canvas overlay
+    // Calculate scaling factors
     const scaleX = image.naturalWidth / rect.width;
     const scaleY = image.naturalHeight / rect.height;
-    tempCtx.drawImage(canvas, 0, 0, rect.width, rect.height, 0, 0, image.naturalWidth, image.naturalHeight);
 
+    console.log("Scaling factors:", scaleX, scaleY);
+
+    // Draw the canvas overlay - use the actual canvas size, not the display size
+    console.log("Drawing canvas overlay:");
+    console.log("Source canvas:", canvas.width, "x", canvas.height);
+    console.log("Target image:", image.naturalWidth, "x", image.naturalHeight);
+
+    tempCtx.drawImage(
+      canvas,
+      0,
+      0,
+      canvas.width,
+      canvas.height, // Source: full canvas
+      0,
+      0,
+      image.naturalWidth,
+      image.naturalHeight // Destination: full image
+    );
+
+    console.log("Canvas overlay drawn successfully");
+
+    console.log("Merged canvas size:", tempCanvas.width, "x", tempCanvas.height);
     return tempCanvas;
   };
 
-  const downscaleCanvas = (sourceCanvas, maxWidth = 1600, maxHeight = 2200) => {
+  const downscaleCanvas = (sourceCanvas, maxWidth = 3000, maxHeight = 4000) => {
     const { width, height } = sourceCanvas;
+    console.log("Original canvas size:", width, "x", height);
+
     let targetW = width;
     let targetH = height;
     const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
     targetW = Math.round(width * ratio);
     targetH = Math.round(height * ratio);
-    if (ratio === 1) return sourceCanvas;
+
+    console.log("Target canvas size:", targetW, "x", targetH, "ratio:", ratio);
+
+    if (ratio === 1) {
+      console.log("No downscaling needed");
+      return sourceCanvas;
+    }
+
     const off = document.createElement("canvas");
     off.width = targetW;
     off.height = targetH;
     const offCtx = off.getContext("2d");
+    offCtx.imageSmoothingEnabled = true;
     offCtx.imageSmoothingQuality = "high";
     offCtx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+
+    console.log("Downscaled canvas created");
     return off;
   };
 
@@ -488,17 +868,32 @@ const PatientFormPage = () => {
       info("Saving to supabase...");
       setSaving(true);
       const mergedCanvas = mergeCanvasWithImage();
-      const scaled = downscaleCanvas(mergedCanvas);
-      // Prefer WEBP for smaller uploads, fallback to PNG
-      const preferType = "image/webp";
-      let blob = await new Promise((resolve) => scaled.toBlob(resolve, preferType, 0.8));
-      let ext = "webp";
+
+      // For overwrite forms, use higher quality settings
+      const isOverwrite = !!overwriteFormId;
+      const maxWidth = isOverwrite ? 4000 : 3000;
+      const maxHeight = isOverwrite ? 5000 : 4000;
+
+      console.log("Is overwrite:", isOverwrite, "Max dimensions:", maxWidth, "x", maxHeight);
+      const scaled = downscaleCanvas(mergedCanvas, maxWidth, maxHeight);
+
+      console.log("Creating blob for upload");
+      console.log("Final canvas size:", scaled.width, "x", scaled.height);
+
+      // Use PNG for better quality, WEBP as fallback
+      const preferType = "image/png";
+      let blob = await new Promise((resolve) => scaled.toBlob(resolve, preferType, 1.0));
+      let ext = "png";
       let mime = preferType;
+
       if (!blob) {
-        blob = await new Promise((resolve) => scaled.toBlob(resolve, "image/png"));
-        ext = "png";
-        mime = "image/png";
+        console.log("PNG failed, trying WEBP");
+        blob = await new Promise((resolve) => scaled.toBlob(resolve, "image/webp", 0.9));
+        ext = "webp";
+        mime = "image/webp";
       }
+
+      console.log("Blob created:", blob?.size, "bytes, type:", blob?.type);
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `${mrno}/${activeForm.name.replace(/\s+/g, "_")}_${timestamp}.${ext}`;
@@ -521,13 +916,21 @@ const PatientFormPage = () => {
           file_path: fileName,
           file_type: mime,
           file_size: blob.size,
+          parent_form_id: overwriteFormId || null, // Link to original form if overwriting
         },
       ]);
 
       if (dbError) throw dbError;
 
-      success("Form saved successfully!");
+      success(overwriteFormId ? "Form overwritten successfully!" : "Form saved successfully!");
       fetchFormHistory(); // Refresh history
+
+      // Clear overwrite state after successful save
+      if (overwriteFormId) {
+        setOverwriteFormId(null);
+        setOverwriteFormData(null);
+      }
+
       return urlData.publicUrl;
     } catch (err) {
       showError(`Failed: ${err.message}`);
@@ -847,10 +1250,28 @@ const PatientFormPage = () => {
               <h1 className="text-lg font-bold">Medical Forms</h1>
               <p className="text-xs text-slate-500">
                 {patient?.name} • {patient?.mrno}
+                {overwriteFormId && (
+                  <span className="ml-2 px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">
+                    {loadingOverwriteData ? "Loading..." : "Overwriting Form - Make changes and save"}
+                  </span>
+                )}
               </p>
             </div>
           </div>
           <div className="flex gap-1">
+            {overwriteFormId && (
+              <button
+                onClick={() => {
+                  setOverwriteFormId(null);
+                  setOverwriteFormData(null);
+                  setActiveForm(null);
+                }}
+                className="p-2 hover:bg-red-50 rounded text-red-600"
+                title="Cancel Overwrite"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={saveToSupabase}
               disabled={saving || !activeForm}
@@ -986,41 +1407,141 @@ const PatientFormPage = () => {
 
         <div className="flex-1 overflow-auto bg-slate-200 p-4">
           {activeForm ? (
-            <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
-              <div className="relative">
-                <img
-                  ref={imageRef}
-                  src={activeForm.url}
-                  alt={activeForm.name}
-                  className="block w-full h-auto select-none pointer-events-none"
-                  draggable="false"
-                  onLoad={() => {
-                    setImageLoaded(true);
-                    // Force a re-render to ensure proper sizing
-                    setTimeout(() => {
-                      if (imageRef.current) {
-                        const event = new Event("resize");
-                        window.dispatchEvent(event);
-                      }
-                    }, 200);
-                  }}
-                  onError={() => {
-                    console.error("Failed to load form image:", activeForm.url);
-                    setImageLoaded(false);
-                  }}
-                />
-                <canvas
-                  ref={canvasRef}
-                  className="absolute top-0 left-0 w-full h-full cursor-crosshair"
-                  style={{ touchAction: "none" }}
-                  onPointerDown={startDrawing}
-                  onPointerMove={draw}
-                  onPointerUp={stopDrawing}
-                  onPointerCancel={stopDrawing}
-                  onPointerLeave={stopDrawing}
-                />
+            activeForm.name === "GENERAL OUT PATIENT CASE SHEET" ? (
+              <OutPatientCaseSheet
+                patient={patient}
+                overwriteData={overwriteFormData}
+                overwriteFormId={overwriteFormId}
+                loadingOverwriteData={loadingOverwriteData}
+                onSave={async (formData) => {
+                  try {
+                    info("Saving form data...");
+                    setSaving(true);
+
+                    // Create a simple HTML representation for storage
+                    const htmlContent = `
+                      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+                        <h1 style="color: #0066cc; text-align: center;">GENERAL OUT PATIENT CASE SHEET</h1>
+                        <h2 style="color: #0066cc; text-align: center;">CURA HOSPITALS</h2>
+                        <hr>
+                        <h3>Patient Information</h3>
+                        <p><strong>Name:</strong> ${formData.name}</p>
+                        <p><strong>Age/DOB:</strong> ${formData.age} / ${formData.dob}</p>
+                        <p><strong>Sex:</strong> ${formData.sex}</p>
+                        <p><strong>PH-ID:</strong> ${formData.phId}</p>
+                        <p><strong>Date:</strong> ${formData.date}</p>
+                        
+                        <h3>Consultation Details</h3>
+                        <p><strong>Consultant:</strong> ${formData.consultant}</p>
+                        <p><strong>Department:</strong> ${formData.department}</p>
+                        <p><strong>Referring Dr/Centre:</strong> ${formData.referringDr}</p>
+                        <p><strong>Type of consult:</strong> ${formData.consultType}</p>
+                        
+                        <h3>Vitals</h3>
+                        <p><strong>Weight:</strong> ${formData.weight} kg | <strong>Height:</strong> ${formData.height} cm | <strong>BMI:</strong> ${formData.bmi}</p>
+                        <p><strong>Heart Rate:</strong> ${formData.heartRate} bpm | <strong>GRBS:</strong> ${formData.grbs} mg/dl</p>
+                        <p><strong>Blood Pressure:</strong> ${formData.bloodPressure} mmHg | <strong>SpO2:</strong> ${formData.spO2}%</p>
+                        
+                        <h3>Clinical Information</h3>
+                        <p><strong>Presenting complaints:</strong> ${formData.presentingComplaints}</p>
+                        <p><strong>History of Present Illness:</strong> ${formData.historyOfPresentIllness}</p>
+                        <p><strong>Past medical History:</strong> ${formData.pastMedicalHistory}</p>
+                        <p><strong>Examination:</strong> ${formData.examination}</p>
+                        <p><strong>Provisional Diagnosis:</strong> ${formData.provisionalDiagnosis}</p>
+                        <p><strong>Advice:</strong> ${formData.advice}</p>
+                        <p><strong>Follow up:</strong> ${formData.followUp}</p>
+                        <p><strong>Allergy:</strong> ${formData.allergy}</p>
+                        <p><strong>Nutritional Assessment:</strong> ${formData.nutritionalAssessment}</p>
+                        <p><strong>Regular Medications:</strong> ${formData.regularMedications}</p>
+                      </div>
+                    `;
+
+                    const blob = new Blob([htmlContent], { type: "text/html" });
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+                    const fileName = `${mrno}/outpatient_case_sheet_${timestamp}.html`;
+
+                    const { error: uploadError } = await supabaseclient.storage
+                      .from("er_forms")
+                      .upload(fileName, blob, {
+                        cacheControl: "3600",
+                        upsert: false,
+                        contentType: "text/html",
+                      });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = supabaseclient.storage.from("er_forms").getPublicUrl(fileName);
+
+                    const { error: dbError } = await supabaseclient.from("patient_er_forms").insert([
+                      {
+                        patient_mrno: mrno,
+                        form_name: activeForm.name,
+                        file_url: urlData.publicUrl,
+                        file_path: fileName,
+                        file_type: "text/html",
+                        file_size: blob.size,
+                        parent_form_id: overwriteFormId || null, // Link to original form if overwriting
+                      },
+                    ]);
+
+                    if (dbError) throw dbError;
+
+                    success(overwriteFormId ? "Form overwritten successfully!" : "Form saved successfully!");
+                    fetchFormHistory();
+
+                    // Clear overwrite state after successful save
+                    if (overwriteFormId) {
+                      setOverwriteFormId(null);
+                      setOverwriteFormData(null);
+                    }
+                  } catch (err) {
+                    showError(`Failed to save: ${err.message}`);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                onPrint={(formData) => {
+                  success("PDF generated successfully!");
+                }}
+              />
+            ) : (
+              <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
+                <div className="relative">
+                  <img
+                    ref={imageRef}
+                    src={activeForm.url}
+                    alt={activeForm.name}
+                    className="block w-full h-auto select-none pointer-events-none"
+                    draggable="false"
+                    onLoad={() => {
+                      console.log("Image loaded successfully:", activeForm.url);
+                      setImageLoaded(true);
+                      // Force a re-render to ensure proper sizing
+                      setTimeout(() => {
+                        if (imageRef.current) {
+                          const event = new Event("resize");
+                          window.dispatchEvent(event);
+                        }
+                      }, 200);
+                    }}
+                    onError={() => {
+                      console.error("Failed to load form image:", activeForm.url);
+                      setImageLoaded(false);
+                    }}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+                    style={{ touchAction: "none" }}
+                    onPointerDown={startDrawing}
+                    onPointerMove={draw}
+                    onPointerUp={stopDrawing}
+                    onPointerCancel={stopDrawing}
+                    onPointerLeave={stopDrawing}
+                  />
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

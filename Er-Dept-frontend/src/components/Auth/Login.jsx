@@ -5,9 +5,21 @@ import { Eye, EyeOff, Phone, Lock, Shield, User } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
 
 const demoUsers = [
-  { username: "admin", password: "1234", role: "admin" },
-  { username: "doc1", password: "docpass", role: "doctor" },
-  { username: "nurse1", password: "nursepass", role: "nurse" },
+  { username: "admin", password: "1234", role: "admin", name: "Admin User", email: "admin@hospital.com" },
+  {
+    username: "doc1",
+    password: "docpass",
+    role: "doctor",
+    name: "Dr. John Smith",
+    email: "doctor@hospital.com",
+  },
+  {
+    username: "nurse1",
+    password: "nursepass",
+    role: "nurse",
+    name: "Nurse Jane Doe",
+    email: "nurse@hospital.com",
+  },
 ];
 
 function Login() {
@@ -76,17 +88,17 @@ function Login() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email / Username */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email or Username</label>
             <div className="relative">
               <input
-                type="email"
+                type="text"
                 disabled={isSubmitting}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="john@gmail.com"
-                className="block w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                placeholder="admin, doc1, nurse1 or email"
+                className="block w-full pl-3 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
               />
-              <Phone className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
+              <User className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
             </div>
           </div>
 
@@ -144,7 +156,7 @@ function Login() {
                 <div>
                   <p className="font-medium text-[15px] capitalize">{demo.role}</p>
                   <p className="text-xs text-gray-500">
-                    {demo.username} | {demo.password}
+                    {demo.name} | {demo.username} | {demo.password}
                   </p>
                 </div>
               </div>

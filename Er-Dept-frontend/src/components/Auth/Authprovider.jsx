@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabaseclient } from "../Config/supabase";
 
 const AuthContext = createContext();
 
@@ -12,6 +11,13 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+
+  // ✅ Dummy users for authentication
+  const dummyUsers = [
+    { username: "admin", password: "1234", role: "admin", name: "Admin User", email: "admin@hospital.com" },
+    { username: "doc1", password: "docpass", role: "doctor", name: "Dr. John Smith", email: "doctor@hospital.com" },
+    { username: "nurse1", password: "nursepass", role: "nurse", name: "Nurse Jane Doe", email: "nurse@hospital.com" },
+  ];
 
   // ✅ Restore user from localStorage
   useEffect(() => {
@@ -32,28 +38,31 @@ export const AuthProvider = ({ children }) => {
     return redirectMap[role] || "/";
   };
 
-  // ✅ Login
+  // ✅ Login with dummy credentials
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseclient.from("users").select("*").eq("email", email).single();
+      // Find user by email or username
+      const foundUser = dummyUsers.find(
+        (user) => user.email === email || user.username === email
+      );
 
-      if (error || !data) {
+      if (!foundUser) {
         return { success: false, message: "User not found" };
       }
 
-      if (data.password !== password) {
+      if (foundUser.password !== password) {
         return { success: false, message: "Invalid password" };
       }
 
-      // ✅ Include role in saved data
-      const { password: _, ...userWithoutPassword } = data;
-      const userWithRole = { ...userWithoutPassword, role: data.role || "doctor" };
+      // Create user object without password
+      const { password: _, ...userWithoutPassword } = foundUser;
+      const userWithRole = { ...userWithoutPassword };
 
       setUser(userWithRole);
-      localStorage.setItem("er_user", JSON.stringify(userWithRole)); // ✅ FIXED
+      localStorage.setItem("er_user", JSON.stringify(userWithRole));
 
-      console.log("✅ Logged in as:", userWithRole.role);
+      console.log("✅ Logged in as:", userWithRole.role, "-", userWithRole.name);
 
       return {
         success: true,

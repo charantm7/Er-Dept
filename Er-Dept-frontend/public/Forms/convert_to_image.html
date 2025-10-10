@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Convert Form to Image</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f0f0f0;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #0066cc;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .instructions {
+        background: #e7f3ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border-left: 4px solid #0066cc;
+      }
+
+      .instructions h2 {
+        color: #0066cc;
+        margin-top: 0;
+      }
+
+      .instructions ol {
+        margin: 10px 0;
+        padding-left: 20px;
+      }
+
+      .instructions li {
+        margin: 8px 0;
+        line-height: 1.5;
+      }
+
+      .form-preview {
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 20px 0;
+      }
+
+      .form-preview iframe {
+        width: 100%;
+        height: 800px;
+        border: none;
+      }
+
+      .buttons {
+        text-align: center;
+        margin: 20px 0;
+      }
+
+      .btn {
+        background: #0066cc;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 0 10px;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn:hover {
+        background: #004499;
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+      }
+
+      .btn-secondary:hover {
+        background: #545b62;
+      }
+
+      .note {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+      }
+
+      .note strong {
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>GENERAL OUT PATIENT CASE SHEET - Image Converter</h1>
+
+      <div class="instructions">
+        <h2>📋 Instructions to Create Form Image:</h2>
+        <ol>
+          <li><strong>Open the form:</strong> Click "Open Form" button below to view the form</li>
+          <li><strong>Take screenshot:</strong> Use your browser's screenshot tool or print to PDF</li>
+          <li><strong>Save as image:</strong> Save the screenshot as "GENERAL OUT PATIENT CASE SHEET.jpg"</li>
+          <li><strong>Place in Forms folder:</strong> Put the image in <code>/public/Forms/</code> folder</li>
+          <li><strong>Test:</strong> The form will now work as an image-based form in your app</li>
+        </ol>
+      </div>
+
+      <div class="buttons">
+        <a href="GENERAL_OUT_PATIENT_CASE_SHEET.html" target="_blank" class="btn">Open Form</a>
+        <button onclick="printForm()" class="btn btn-secondary">Print Form</button>
+      </div>
+
+      <div class="note">
+        <strong>💡 Pro Tip:</strong> For best results, open the form in a new tab, zoom to 100%, and take a
+        full-page screenshot. Make sure to capture the entire form without any browser UI elements.
+      </div>
+
+      <div class="form-preview">
+        <iframe src="GENERAL_OUT_PATIENT_CASE_SHEET.html"></iframe>
+      </div>
+
+      <div class="note">
+        <strong>📁 File Location:</strong> After creating the image, place it at:<br />
+        <code>/public/Forms/GENERAL OUT PATIENT CASE SHEET.jpg</code>
+      </div>
+    </div>
+
+    <script>
+      function printForm() {
+        const formWindow = window.open("GENERAL_OUT_PATIENT_CASE_SHEET.html", "_blank");
+        formWindow.onload = function () {
+          formWindow.print();
+        };
+      }
+    </script>
+  </body>
+</html>
