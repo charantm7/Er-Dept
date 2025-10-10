@@ -231,9 +231,7 @@ const OutPatientCaseSheet = ({
             </div>
           </div>
         </div>
-        <div className="absolute left-0 top-0 bottom-0 w-16 bg-blue-700 flex items-center justify-center">
-          <span className="text-white font-bold transform -rotate-90">PATIENT</span>
-        </div>
+
         {loadingOverwriteData && (
           <div className="mt-2 text-sm text-blue-200 text-center">Loading existing form data...</div>
         )}
@@ -517,7 +515,7 @@ const OutPatientCaseSheet = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-4 justify-end">
+      <div className="flex relative right-0 bottom-10 gap-4 justify-end">
         <button
           onClick={handleSave}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
