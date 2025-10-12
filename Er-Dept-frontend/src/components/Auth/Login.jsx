@@ -49,8 +49,14 @@ function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-200 via-blue-100 to-white">
-      <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-6 sm:p-8  border border-blue-100 transition-all ">
+    <div className="relative min-h-screen  flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-200 via-blue-100 to-white overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-50px] left-[-50px] w-72 h-72 bg-blue-200  rounded-full blur-3xl"></div>
+        <div className="absolute top-20 left-10 w-20 h-20 bg-blue-300 rounded-full blur-2xl animate-float"></div>
+        <div className="absolute bottom-[-60px] right-[-40px] w-96 h-96 bg-blue-100 rounded-full blur-2xl"></div>
+        <div className="absolute top-1/3 right-1/4 w-40 h-40 bg-indigo-100 rounded-full blur-2xl"></div>
+      </div>
+      <div className="w-full max-w-lg z-10 bg-white shadow-xl rounded-2xl p-6 sm:p-8  border border-blue-300 transition-all ">
         <div className="text-center mb-6">
           <div className="mx-auto h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-md border border-blue-200">
             <Shield className="h-8 w-8 text-blue-600" />
@@ -62,7 +68,7 @@ function Login() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email / Username */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email or Username</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <input
@@ -71,7 +77,7 @@ function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="curaerexample@gmail.com"
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition placeholder:text-sm"
               />
               <User className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
             </div>
@@ -87,7 +93,7 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition placeholder:text-sm"
               />
               <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <button

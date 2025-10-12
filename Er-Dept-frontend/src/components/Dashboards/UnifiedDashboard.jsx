@@ -341,6 +341,7 @@ const UnifiedDashboard = () => {
     info("Refreshing dashboard data...");
     await new Promise((resolve) => setTimeout(resolve, 1000));
     success("Dashboard refreshed!");
+    location.reload(true);
     setLoading(false);
   };
 
@@ -640,10 +641,10 @@ const UnifiedDashboard = () => {
             <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back, {user?.name || "User"}!</h2>
             <p className="text-slate-600">{formatDate(currentTime)}</p>
           </div>
-          <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-xl shadow-sm border border-slate-200">
-            <Clock className="w-5 h-5 text-teal-600" />
+          <div className="flex gap-4 justify-evenly  bg-white px-5 py-3 rounded-xl shadow-sm border border-slate-200">
+            <Clock className="w-5 h-5 relative mt-1 text-teal-600" />
             <div className="text-right">
-              <p className="text-2xl font-bold text-slate-900 font-mono">{formatTime(currentTime)}</p>
+              <p className="text-xl font-bold text-slate-900 font-mono">{formatTime(currentTime)}</p>
               <p className="text-xs text-slate-500">Live Time</p>
             </div>
           </div>
@@ -1021,20 +1022,25 @@ const UnifiedDashboard = () => {
       {logoutModal && (
         <div
           id="overlay"
-          className="fixed inset-0 bg-[#00000085] backdrop-blur-[2px] flex items-center justify-center z-50"
+          className="fixed inset-0 bg-[#000000cc] backdrop-blur-[2px] flex items-center justify-center z-50"
         >
-          <div className="bg-gray-800 text-white p-4 rounded-lg shadow-lg w-80">
+          <div className="bg-[#ffffffe7] text-black p-4 rounded-lg shadow-lg w-80">
             <h2 className="text-lg font-semibold mb-2">Logout</h2>
-            <p className="text-sm text-gray-300 mb-4">Are you sure, Do you want to logout?</p>
+            <p className="text-sm text-black mb-4">Are you sure, Do you want to logout?</p>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setLogoutModal(false)}
-                className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500"
+                className="px-3 py-1 text-sm cursor-pointer rounded text-white bg-gray-600 hover:bg-gray-500"
               >
                 Cancel
               </button>
-              <button className="px-3 py-1 rounded bg-red-600 hover:bg-red-500">Confirm</button>
+              <button
+                onClick={handleLogout}
+                className="px-3 text-white text-sm cursor-pointer py-1 rounded bg-red-600 hover:bg-red-500"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>

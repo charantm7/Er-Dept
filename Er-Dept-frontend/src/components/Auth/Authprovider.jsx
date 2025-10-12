@@ -16,12 +16,17 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data, error } = await supabaseclient.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-        setRole(data.user.user_metadata?.role || null);
-      } else {
-        console.error("Unable to fetch loggedIn user!", error);
+      const {
+        data: { session },
+        error,
+      } = await supabaseclient.auth.getSession();
+
+      if (error) {
+        console.warn("Session fetch error", error.message);
+      }
+      if (session?.user) {
+        setUser(session.user);
+        setRole(session.user.user_metadata?.role || null);
       }
       setLoading(false);
     };
@@ -54,7 +59,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabaseclient.auth.signInWithPassword({ email, password });
 
       if (error) {
-        return { success: false, message: error };
+        return { success: false, message: error.message };
       }
 
       setUser(data.user);
