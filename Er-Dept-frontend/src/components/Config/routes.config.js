@@ -12,6 +12,7 @@ export const ROUTES = {
   LABREPORT: "/lab-results",
   BILLING: "/billing",
   LABREPORT: "/labreport",
+  SETTINGS: "/settings",
   UNAUTHORIZED: "/unauthorized",
 };
 

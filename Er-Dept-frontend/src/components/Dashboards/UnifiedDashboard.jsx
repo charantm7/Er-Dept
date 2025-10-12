@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { replace, useNavigate } from "react-router-dom";
 import {
   Search,
   Bell,
   LogOut,
+  Settings,
   Menu,
   X,
   AlertTriangle,
@@ -158,6 +159,7 @@ const ROLE_CONFIG = {
     canManageBilling: true,
     canViewReports: true,
     showStats: ["patients", "appointments", "billing", "staff", "beds", "emergencies"],
+    quickAccess: ["patients", "appointments", "billing", "staff", "reports", "labreport"],
   },
   doctor: {
     canViewAll: false,
@@ -165,6 +167,7 @@ const ROLE_CONFIG = {
     canManageBilling: false,
     canViewReports: true,
     showStats: ["myPatients", "appointments", "emergencies", "pendingReports"],
+    quickAccess: ["patients", "appointments", "billing", "reports", "labreport"],
   },
   nurse: {
     canViewAll: false,
@@ -172,6 +175,7 @@ const ROLE_CONFIG = {
     canManageBilling: false,
     canViewReports: false,
     showStats: ["assignedPatients", "appointments", "emergencies", "vitals"],
+    quickAccess: ["patients", "appointments", "billing", "reports", "labreport"],
   },
 };
 
@@ -282,7 +286,7 @@ const UnifiedDashboard = () => {
 
   const searchRef = useRef(null);
   const sortRef = useRef(null);
-  const roleConfig = ROLE_CONFIG[user?.role] || ROLE_CONFIG.nurse;
+  const roleConfig = ROLE_CONFIG[user?.user_metadata?.role] || ROLE_CONFIG.nurse;
 
   const alertsPerPage = 3;
   const totalPages = Math.ceil(activeAlerts.length / alertsPerPage);
@@ -478,7 +482,7 @@ const UnifiedDashboard = () => {
     },
     { title: "Billing", icon: DollarSign, color: "amber", route: "billing", description: "Payment records" },
     { title: "Staff", icon: UserCog, color: "indigo", route: "staff", description: "Manage staff" },
-    { title: "Reports", icon: BarChart3, color: "pink", route: "reports", description: "Analytics" },
+    { title: "Reports", icon: BarChart3, color: "pink", route: "reports", description: "Analytical reports" },
   ];
 
   return (
@@ -488,13 +492,13 @@ const UnifiedDashboard = () => {
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="bg-gradient-to-br from-teal-500 to-teal-600 w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
                   <Heart className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-slate-900">Emergency Dept</h1>
-                  <p className="text-xs text-slate-500">Hospital Management System</p>
+                  <p className="text-xs text-slate-500">CuraHealth Hospital</p>
                 </div>
               </div>
             </div>
@@ -608,6 +612,14 @@ const UnifiedDashboard = () => {
               >
                 <RefreshCw className={`w-5 h-5 text-slate-700 ${loading ? "animate-spin" : ""}`} />
               </button>
+              <button
+                onClick={() => navigate("/settings", replace)}
+                disabled={loading}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Settings className={`w-5 h-5 text-slate-700 `} />
+              </button>
+
               <button className="relative p-2 hover:bg-slate-100 rounded-lg transition-colors">
                 <Bell className="w-5 h-5 text-slate-700" />
                 {activeAlerts.length > 0 && (
@@ -617,8 +629,8 @@ const UnifiedDashboard = () => {
               <div className="h-8 w-px bg-slate-300"></div>
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-900">{user?.name || "User"}</p>
-                  <p className="text-xs text-slate-500 capitalize">{user?.role || "Staff"}</p>
+                  <p className="text-sm font-semibold text-slate-900">{user?.email || "User"}</p>
+                  <p className="text-xs text-slate-500 capitalize">{user?.user_metadata?.role || "Staff"}</p>
                 </div>
                 <button
                   onClick={() => setLogoutModal(true)}
@@ -658,36 +670,49 @@ const UnifiedDashboard = () => {
               Quick Access
             </h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {quickAccessItems.map((item, index) => {
-              const Icon = item.icon;
-              const colors = {
-                teal: "from-teal-500 to-teal-600",
-                blue: "from-blue-500 to-blue-600",
-                purple: "from-purple-500 to-purple-600",
-                amber: "from-amber-500 to-amber-600",
-                indigo: "from-indigo-500 to-indigo-600",
-                pink: "from-pink-500 to-pink-600",
-              };
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+            {quickAccessItems
+              .filter((item) => roleConfig.quickAccess.includes(item.route))
+              .map((item, index) => {
+                const Icon = item.icon;
+                const colors = {
+                  teal: "from-teal-500 to-teal-600",
+                  blue: "from-blue-500 to-blue-600",
+                  purple: "from-purple-500 to-purple-600",
+                  amber: "from-amber-500 to-amber-600",
+                  indigo: "from-indigo-500 to-indigo-600",
+                  pink: "from-pink-500 to-pink-600",
+                };
 
-              return (
-                <button
-                  key={index}
-                  onClick={() => handleQuickAccess(item.route)}
-                  className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:scale-105 group"
-                >
-                  <div
-                    className={`bg-gradient-to-br ${
-                      colors[item.color]
-                    } p-3 rounded-lg mb-3 mx-auto w-fit group-hover:scale-110 transition-transform`}
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleQuickAccess(item.route)}
+                    className="relative cursor-pointer flex justify-around overflow-hidden group bg-gradient-to-br from-white to-slate-50 p-5 rounded-2xl shadow-sm border border-slate-200/70 hover:shadow-lg hover:border-slate-300 transition-all duration-300 ease-out hover:-translate-y-1 active:scale-95"
                   >
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900 mb-1">{item.title}</p>
-                  <p className="text-xs text-slate-500">{item.description}</p>
-                </button>
-              );
-            })}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-slate-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                    <div
+                      className={`relative bg-gradient-to-br ${
+                        colors[item.color]
+                      } p-3 rounded-xl   w-fit shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300`}
+                    >
+                      <Icon className="w-6 h-6 text-white drop-shadow-sm" />
+                    </div>
+
+                    <div className="relative flex flex-col items-baseline">
+                      <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors duration-300">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-slate-500 group-hover:text-slate-600 mt-1">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-b-2xl"></div>
+                  </button>
+                );
+              })}
           </div>
         </div>
 

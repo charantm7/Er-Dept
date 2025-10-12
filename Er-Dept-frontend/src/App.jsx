@@ -12,6 +12,7 @@ import PatientDetailsPage from "./components/Pages/PatientDetailsPage";
 import AppointmentsPage from "./components/Pages/AppointmentsPage";
 import PatientFormPage from "./components/FormPage/PatientFormPage";
 import LabReports from "./components/Pages/LabReports";
+import HospitalSettings from "./components/HospitalSettings";
 
 function App() {
   return (
@@ -71,6 +72,14 @@ function App() {
               element={
                 <ProtectRoute allowedRoles={["admin", "doctor", "nurse"]}>
                   <AppointmentsPage />
+                </ProtectRoute>
+              }
+            />
+            <Route
+              path={ROUTES.SETTINGS}
+              element={
+                <ProtectRoute allowedRoles={["admin", "doctor", "nurse"]}>
+                  <HospitalSettings />
                 </ProtectRoute>
               }
             />
