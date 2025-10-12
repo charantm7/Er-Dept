@@ -1,30 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "./Authprovider";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Phone, Lock, Shield, User } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock, Shield, User, Mail } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
-
-const demoUsers = [
-  { username: "admin", password: "1234", role: "admin", name: "Admin User", email: "admin@hospital.com" },
-  {
-    username: "doc1",
-    password: "docpass",
-    role: "doctor",
-    name: "Dr. John Smith",
-    email: "doctor@hospital.com",
-  },
-  {
-    username: "nurse1",
-    password: "nursepass",
-    role: "nurse",
-    name: "Nurse Jane Doe",
-    email: "nurse@hospital.com",
-  },
-];
 
 function Login() {
   const { login, user, loading } = useAuth();
-  const { success, errorToast: setError } = useToast();
+  const { success, errorToast: setError, info } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -32,11 +14,9 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false);
 
   const from = location.state?.from?.pathname || null;
 
-  // ✅ Handle login submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -47,7 +27,7 @@ function Login() {
       setError(result.message);
       setIsSubmitting(false);
     } else {
-      success(`Welcome back, ${result.user.name}! 🎉`);
+      success(`Welcome back, ${result.data.email}! 🎉`);
       setTimeout(() => {
         navigate(from || result.redirectTo, { replace: true });
       }, 500);
@@ -55,11 +35,6 @@ function Login() {
     }
 
     navigate(from || result.redirectTo, { replace: true });
-  };
-
-  const fillDemoUser = (user) => {
-    setUsername(user.username);
-    setPassword(user.password);
   };
 
   if (loading) {
@@ -75,14 +50,13 @@ function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-200 via-blue-100 to-white">
-      <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-blue-100 transition-all">
-        {/* --- Login UI --- */}
+      <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-6 sm:p-8  border border-blue-100 transition-all ">
         <div className="text-center mb-6">
           <div className="mx-auto h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-md border border-blue-200">
             <Shield className="h-8 w-8 text-blue-600" />
           </div>
-          <h2 className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">Hospital Admin Login</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to access the CuraHealth Dashboard.</p>
+          <h2 className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">CuraHealth Authentication</h2>
+          <p className="mt-2 text-sm text-gray-600">Sign in to access the Emergency Dashboard.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -90,13 +64,14 @@ function Login() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email or Username</label>
             <div className="relative">
+              <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <input
-                type="text"
+                type="email"
                 disabled={isSubmitting}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin, doc1, nurse1 or email"
-                className="block w-full pl-3 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                placeholder="curaerexample@gmail.com"
+                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
               />
               <User className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
             </div>
@@ -128,7 +103,7 @@ function Login() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3 text-white font-medium rounded-lg shadow-md transition-all duration-200 disabled:opacity-60"
+            className="w-full py-3 cursor-pointer text-white font-medium rounded-lg shadow-md transition-all duration-200 disabled:opacity-60"
             style={{
               background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)",
             }}
@@ -136,35 +111,16 @@ function Login() {
             {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
         </form>
-
-        {/* Demo users */}
-        <div className="mt-6 mb-4 border-t border-gray-200"></div>
-        <p className="text-center text-sm font-semibold text-gray-600 mb-3">DEMO CREDENTIALS</p>
-        <div className="flex flex-col gap-3">
-          {demoUsers.map((demo, idx) => (
-            <div
-              key={idx}
-              onClick={() => fillDemoUser(demo)}
-              className={`flex items-center justify-between rounded-lg border-2 px-3 py-2 cursor-pointer transition ${
-                username === demo.username
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-100 hover:border-blue-400 hover:bg-blue-50"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <User className="h-6 w-6 text-blue-500" />
-                <div>
-                  <p className="font-medium text-[15px] capitalize">{demo.role}</p>
-                  <p className="text-xs text-gray-500">
-                    {demo.name} | {demo.username} | {demo.password}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className=" flex gap-2 text-sm mt-4 text-gray-600">
+          <p>Need Help?</p>
+          <a href="#" className="text-blue-500 underline">
+            Contact Support
+          </a>
         </div>
-
-        <p className="mt-4 text-xs text-gray-500 text-center">Click any staff to auto-fill credentials.</p>
+        <div className="mt-3 relative top-2 flex justify-center text-gray-400 items-center gap-2 text-sm">
+          <Shield size={18} />
+          Secure Authentication
+        </div>
       </div>
     </div>
   );

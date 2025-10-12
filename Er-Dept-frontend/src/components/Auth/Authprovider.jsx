@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabaseclient } from "../Config/supabase";
 
 const AuthContext = createContext();
 
@@ -10,65 +11,55 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState(null);
   const [user, setUser] = useState(null);
 
-  // ✅ Dummy users for authentication
-  const dummyUsers = [
-    { username: "admin", password: "1234", role: "admin", name: "Admin User", email: "admin@hospital.com" },
-    { username: "doc1", password: "docpass", role: "doctor", name: "Dr. John Smith", email: "doctor@hospital.com" },
-    { username: "nurse1", password: "nursepass", role: "nurse", name: "Nurse Jane Doe", email: "nurse@hospital.com" },
-  ];
-
-  // ✅ Restore user from localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("er_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const getUser = async () => {
+      const { data, error } = await supabaseclient.auth.getUser();
+      if (data?.user) {
+        setUser(data.user);
+        setRole(data.user.user_metadata?.role || null);
+      } else {
+        console.error("Unable to fetch loggedIn user!", error);
+      }
+      setLoading(false);
+    };
+
+    getUser();
+
+    const { data: listeners } = supabaseclient.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setRole(session.user.user_metadata?.role || null);
+      } else {
+        setUser(null);
+        setRole(null);
+      }
+    });
+    return () => listeners.subscription.unsubscribe();
   }, []);
 
-  // ✅ Role-based redirect helper
-  const getRoleBasedRedirect = (role) => {
-    const redirectMap = {
-      admin: "/admin",
-      doctor: "/doctor",
-      nurse: "/nurse",
-    };
-    return redirectMap[role] || "/";
+  const redirectTo = {
+    admin: "/admin",
+    doctor: "/doctor",
+    nurse: "/nurse",
   };
 
-  // ✅ Login with dummy credentials
   const login = async (email, password) => {
-    setLoading(true);
+    if (!email || !password) {
+      return { success: false, message: "Please Enter Credentials." };
+    }
     try {
-      // Find user by email or username
-      const foundUser = dummyUsers.find(
-        (user) => user.email === email || user.username === email
-      );
+      const { data, error } = await supabaseclient.auth.signInWithPassword({ email, password });
 
-      if (!foundUser) {
-        return { success: false, message: "User not found" };
+      if (error) {
+        return { success: false, message: error };
       }
 
-      if (foundUser.password !== password) {
-        return { success: false, message: "Invalid password" };
-      }
-
-      // Create user object without password
-      const { password: _, ...userWithoutPassword } = foundUser;
-      const userWithRole = { ...userWithoutPassword };
-
-      setUser(userWithRole);
-      localStorage.setItem("er_user", JSON.stringify(userWithRole));
-
-      console.log("✅ Logged in as:", userWithRole.role, "-", userWithRole.name);
-
-      return {
-        success: true,
-        user: userWithRole,
-        redirectTo: getRoleBasedRedirect(userWithRole.role),
-      };
+      setUser(data.user);
+      setRole(data.user.user_metadata?.role || null);
+      return { data: data.user, success: true, redirectTo: redirectTo[data.user.user_metadata?.role] };
     } catch (err) {
       console.error("Auth error:", err);
       return { success: false, message: "Something went wrong" };
@@ -77,11 +68,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ✅ Logout
-  const logout = () => {
+  const logout = async () => {
+    await supabaseclient.auth.signOut();
     setUser(null);
-    localStorage.removeItem("er_user");
+    setRole(null);
   };
 
-  return <AuthContext.Provider value={{ user, login, logout, loading }}>{children}</AuthContext.Provider>;
+  const value = { user, login, logout, role, loading, isAuthenticated: !!user };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

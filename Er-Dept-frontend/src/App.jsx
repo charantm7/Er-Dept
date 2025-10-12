@@ -23,7 +23,7 @@ function App() {
             <Route path={ROUTES.HOME} element={<RootRedirect />} />
 
             {/* Login Route */}
-            <Route path={ROUTES.LOGIN} element={<Login />} />
+            <Route path={ROUTES.LOGIN} element={<LoginRedirect />} />
 
             {/* Single Dashboard route */}
             <Route
@@ -44,7 +44,6 @@ function App() {
               }
             />
 
-            {/* redirect route */}
             <Route path={ROUTES.NURSE} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
             <Route path={ROUTES.ADMIN} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
             <Route path={ROUTES.DOCTOR} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
@@ -103,7 +102,26 @@ const RootRedirect = () => {
     nurse: ROUTES.NURSE,
   };
 
-  return <Navigate to={redirectMap[user.role] || ROUTES.LOGIN} replace />;
+  return <Navigate to={redirectMap[user?.user_metadate?.role] || ROUTES.LOGIN} replace />;
+};
+
+const LoginRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (user) {
+    const redirectMap = {
+      admin: ROUTES.ADMIN,
+      doctor: ROUTES.DOCTOR,
+      nurse: ROUTES.NURSE,
+    };
+
+    return <Navigate to={redirectMap[user?.user_metadate?.role] || ROUTES.DASHBOARD} replace />;
+  }
+  return <Login />;
 };
 
 export default App;

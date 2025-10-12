@@ -278,6 +278,7 @@ const UnifiedDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [logoutModal, setLogoutModal] = useState(false);
 
   const searchRef = useRef(null);
   const sortRef = useRef(null);
@@ -619,7 +620,7 @@ const UnifiedDashboard = () => {
                   <p className="text-xs text-slate-500 capitalize">{user?.role || "Staff"}</p>
                 </div>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setLogoutModal(true)}
                   className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
                   title="Logout"
                 >
@@ -1016,6 +1017,28 @@ const UnifiedDashboard = () => {
           animation: modal-in 0.2s ease-out;
         }
       `}</style>
+
+      {logoutModal && (
+        <div
+          id="overlay"
+          className="fixed inset-0 bg-[#00000085] backdrop-blur-[2px] flex items-center justify-center z-50"
+        >
+          <div className="bg-gray-800 text-white p-4 rounded-lg shadow-lg w-80">
+            <h2 className="text-lg font-semibold mb-2">Logout</h2>
+            <p className="text-sm text-gray-300 mb-4">Are you sure, Do you want to logout?</p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setLogoutModal(false)}
+                className="px-3 py-1 rounded bg-gray-600 hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+              <button className="px-3 py-1 rounded bg-red-600 hover:bg-red-500">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

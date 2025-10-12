@@ -26,7 +26,7 @@ export const ProtectRoute = ({
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.user_metadata?.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-white">
         <div className="text-center p-8 bg-white rounded-lg shadow-xl max-w-md">
