@@ -26,9 +26,45 @@ import {
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
 import { supabaseclient } from "../Config/supabase";
+import { useAuth } from "../Auth/Authprovider";
+
+const ROLE_CONFIG = {
+  admin: {
+    canViewAll: true,
+    canOverwriteFormHistory: true,
+    canEditPatientDetails: true,
+    canViewFormHistory: true,
+    CanEditDetails: true,
+    canManageUsers: true,
+    canManageBilling: true,
+    canViewReports: true,
+    options: ["medicalforms", "billing", "labresults", "appointments"],
+  },
+  doctor: {
+    canViewAll: false,
+    canEditPatientDetails: true,
+    canOverwriteFormHistory: false,
+    canViewFormHistory: true,
+    canManageUsers: false,
+    canManageBilling: false,
+    canViewReports: true,
+    options: ["medicalforms", "billing", "labresults", "appointments"],
+  },
+  nurse: {
+    canViewAll: false,
+    canEditPatientDetails: true,
+    canOverwriteFormHistory: false,
+    canViewFormHistory: true,
+    canManageUsers: false,
+    canManageBilling: false,
+    canViewReports: false,
+    options: ["medicalforms", "billing", "labresults", "appointments"],
+  },
+};
 
 const PatientDetailsPage = () => {
   const { mrno } = useParams();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { success, errorToast: showError, info } = useToast();
   const [patient, setPatient] = useState(null);
@@ -38,7 +74,9 @@ const PatientDetailsPage = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedForm, setSelectedForm] = useState(null);
   const [showFormModal, setShowFormModal] = useState(false);
-  const [formAction, setFormAction] = useState(null); // 'view' or 'overwrite'
+  const [formAction, setFormAction] = useState(null);
+
+  const roleConfig = ROLE_CONFIG[user?.user_metadata?.role] || ROLE_CONFIG.nurse;
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -166,7 +204,7 @@ const PatientDetailsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-teal-50/20 p-6">
-      <div className="max-w-7xl mx-auto flex gap-6">
+      <div className="max-w-8xl mx-auto flex gap-6">
         {/* Main Content */}
         <div className="flex-1">
           {/* Header */}
@@ -184,25 +222,25 @@ const PatientDetailsPage = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
-                  showHistory
-                    ? "bg-teal-600 text-white border-teal-600"
-                    : "bg-white border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <History className="w-5 h-5" />
-                Form History
-              </button>
-              <button className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
-                <Printer className="w-5 h-5" />
-                Print
-              </button>
-              <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2">
-                <Edit className="w-5 h-5" />
-                Edit Details
-              </button>
+              {roleConfig.canViewFormHistory && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
+                    showHistory
+                      ? "bg-teal-600 text-white border-teal-600"
+                      : "bg-white border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <History className="w-5 h-5" />
+                  Form History
+                </button>
+              )}
+              {roleConfig.canEditPatientDetails && (
+                <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2">
+                  <Edit className="w-5 h-5" />
+                  Edit Details
+                </button>
+              )}
             </div>
           </div>
 
@@ -235,7 +273,7 @@ const PatientDetailsPage = () => {
           {/* Tabs */}
           <div className="bg-white rounded-t-xl shadow-md border-b border-slate-200">
             <div className="flex gap-4 px-6 pt-4">
-              {["overview", "medical-history", "vitals", "medications"].map((tab) => (
+              {["overview"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -360,7 +398,7 @@ const PatientDetailsPage = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-scroll max-h-[95vh] p-4">
                 {loadingHistory ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="animate-spin text-teal-500" size={24} />
@@ -372,7 +410,7 @@ const PatientDetailsPage = () => {
                     <p>No forms saved yet</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 ">
                     {formHistory.map((form) => (
                       <div
                         key={form.id}
@@ -397,20 +435,25 @@ const PatientDetailsPage = () => {
                         </div>
 
                         <div className="flex gap-2 mt-3">
-                          <button
-                            onClick={() => handleViewForm(form)}
-                            className="flex-1 flex items-center justify-center gap-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
-                          >
-                            <Eye size={12} />
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleOverwriteForm(form)}
-                            className="flex-1 flex items-center justify-center gap-1 text-xs bg-teal-600 text-white px-2 py-1 rounded hover:bg-teal-700 transition-colors"
-                          >
-                            <Pencil size={12} />
-                            Overwrite
-                          </button>
+                          {roleConfig.canViewFormHistory && (
+                            <button
+                              onClick={() => handleViewForm(form)}
+                              className="flex-1 flex items-center justify-center gap-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
+                            >
+                              <Eye size={12} />
+                              View
+                            </button>
+                          )}
+                          {roleConfig.canOverwriteFormHistory && (
+                            <button
+                              onClick={() => handleOverwriteForm(form)}
+                              className="flex-1 flex items-center justify-center gap-1 text-xs bg-teal-600 text-white px-2 py-1 rounded hover:bg-teal-700 transition-colors"
+                            >
+                              <Pencil size={12} />
+                              Overwrite
+                            </button>
+                          )}
+
                           <button
                             onClick={() => downloadForm(form)}
                             className="flex items-center justify-center gap-1 text-xs bg-slate-600 text-white px-2 py-1 rounded hover:bg-slate-700 transition-colors"
