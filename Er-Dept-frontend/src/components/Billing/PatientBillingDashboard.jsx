@@ -298,7 +298,6 @@ export default function PatientBillingDashboard() {
           </div>
         </div>
 
-        {/* Billing Table */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-12 sm:py-20">
