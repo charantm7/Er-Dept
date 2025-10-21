@@ -257,7 +257,6 @@ export default function PatientBillingDashboard() {
           </div>
         )}
 
-        {/* Filters and Search */}
         <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             {/* Search */}
