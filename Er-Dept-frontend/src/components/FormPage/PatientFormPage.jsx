@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../Context/ToastContext";
 import { supabaseclient } from "../Config/supabase";
+import { supabaseAdmin } from "../Config/supabase-admin";
 import { PencilLine } from "lucide-react";
 import OutPatientCaseSheet from "../Forms/OutPatientCaseSheet";
 
@@ -389,7 +390,7 @@ const PatientFormPage = () => {
     console.log("Loading form data for overwrite, formId:", formId);
 
     try {
-      const { data, error } = await supabaseclient
+      const { data, error } = await supabaseAdmin
         .from("patient_er_forms")
         .select("*")
         .eq("id", formId)
@@ -490,7 +491,7 @@ const PatientFormPage = () => {
   const fetchFormHistory = async () => {
     setLoadingHistory(true);
     try {
-      const { data, error } = await supabaseclient
+      const { data, error } = await supabaseAdmin
         .from("patient_er_forms")
         .select("*")
         .eq("patient_mrno", mrno)
@@ -896,19 +897,21 @@ const PatientFormPage = () => {
       console.log("Blob created:", blob?.size, "bytes, type:", blob?.type);
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `${mrno}/${activeForm.name.replace(/\s+/g, "_")}_${timestamp}.${ext}`;
+      const safeFormName = activeForm.name.replace(/[()]/g, "").replace(/[^a-zA-Z0-9_\-]/g, "_");
+
+      const fileName = `${mrno}/${safeFormName}_${timestamp}.${ext}`;
 
       const { error: uploadError } = await supabaseclient.storage.from("er_forms").upload(fileName, blob, {
         cacheControl: "3600",
         upsert: false,
         contentType: mime,
       });
-
+      if (uploadError) console.error("Upload failed:", uploadError);
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabaseclient.storage.from("er_forms").getPublicUrl(fileName);
 
-      const { error: dbError } = await supabaseclient.from("patient_er_forms").insert([
+      const { error: dbError } = await supabaseAdmin.from("patient_er_forms").insert([
         {
           patient_mrno: mrno,
           form_name: activeForm.name,
@@ -1035,7 +1038,7 @@ const PatientFormPage = () => {
         });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabaseclient.storage.from("er_forms").getPublicUrl(path);
-      const { error: dbError } = await supabaseclient.from("patient_er_forms").insert([
+      const { error: dbError } = await supabaseAdmin.from("patient_er_forms").insert([
         {
           patient_mrno: mrno,
           form_name: attachmentName || attachmentFile.name,
@@ -1472,7 +1475,7 @@ const PatientFormPage = () => {
 
                     const { data: urlData } = supabaseclient.storage.from("er_forms").getPublicUrl(fileName);
 
-                    const { error: dbError } = await supabaseclient.from("patient_er_forms").insert([
+                    const { error: dbError } = await supabaseAdmin.from("patient_er_forms").insert([
                       {
                         patient_mrno: mrno,
                         form_name: activeForm.name,
