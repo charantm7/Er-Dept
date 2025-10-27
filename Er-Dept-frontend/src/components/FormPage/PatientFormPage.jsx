@@ -881,7 +881,6 @@ const PatientFormPage = () => {
       console.log("Creating blob for upload");
       console.log("Final canvas size:", scaled.width, "x", scaled.height);
 
-      // Use PNG for better quality, WEBP as fallback
       const preferType = "image/png";
       let blob = await new Promise((resolve) => scaled.toBlob(resolve, preferType, 1.0));
       let ext = "png";
